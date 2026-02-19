@@ -1,260 +1,122 @@
-# Jeeves
+# Jeeves - AI Email Assistant
 
-AI-powered email assistant that learns your writing style and drafts responses for you.
+Jeeves is an AI-powered email assistant that learns your writing style and drafts contextual responses automatically. All processing happens locally — your email data never leaves your machine.
 
-## What It Does
+## Features
 
-1. **Learns your style** — Fine-tunes an LLM on your email history
-2. **Drafts responses** — Generates context-aware replies to new emails
-3. **Tone modes** — Casual, formal, concise, or match your personal style
-4. **Human-in-the-loop** — All drafts require your approval before sending
-5. **Local-first** — Your email data never leaves your machine
-
-## Tech Stack
-
-- **Python** — Core language
-- **Gmail API** — Email access via OAuth
-- **Ollama** — Local LLM inference (Mistral, Llama, etc.)
-- **LangChain** — Agent orchestration
-- **ChromaDB** — Vector storage for RAG
-- **Gradio** — Web dashboard for draft review
-
-## Status
-
-🚧 **In Development** — Feature 1.2 (Gmail OAuth) in progress
+- 🤖 **AI-Powered Responses** — Uses local LLM (Ollama) to generate contextual replies
+- 📚 **Style Learning** — Learns from your past emails to match your writing style
+- 🎨 **Multiple Tones** — Casual, formal, concise, or style-match modes
+- 🔒 **Privacy First** — All processing happens locally, no data leaves your machine
+- 📊 **Review Dashboard** — Gradio UI to review and edit drafts before sending
+- 🔔 **Push Notifications** — Get notified when new drafts are ready
 
 ## Quick Start
 
+### Prerequisites
+
+- Python 3.11+
+- Ollama (for local LLM)
+- Gmail account with API access
+
+### Installation
+
 ```bash
-# 1. Clone the repo
+# Clone the repository
 git clone https://github.com/alexlinyx/jeeves.git
 cd jeeves
 
-# 2. Create virtual environment
-python3 -m venv venv
-
-# 3. Activate (Mac/Linux)
-source venv/bin/activate
-
-# 3. Activate (Windows)
-venv\Scripts\activate
-
-# 4. Install dependencies
-pip install -r requirements.txt
-
-# 5. Set up Gmail access (see below)
-```
-
----
-
-# Gmail Setup (READ THIS FIRST)
-
-**You need to give Jeeves permission to read and send emails.**  
-This requires a one-time setup in Google's system. Don't worry — we'll walk you through it step by step.
-
-**Estimated time:** 5 minutes
-
----
-
-## Step 1: Create a Google Cloud Project
-
-1. Go to: https://console.cloud.google.com/projectcreate
-2. Enter a name, like: `jeeves-email-assistant`
-3. Click **CREATE**
-4. Wait for it to finish (this takes ~30 seconds)
-
-**Important:** Keep this tab open — you'll need it for the next steps.
-
----
-
-## Step 2: Enable the Gmail API
-
-1. In the Google Cloud Console (your project), go to the menu (☰) on the left
-2. Click **APIs & Services** → **Library**
-3. In the search bar, type: `Gmail API`
-4. Click on **Gmail API** when it appears
-5. Click **ENABLE**
-
----
-
-## Step 3: Configure OAuth Consent Screen
-
-This tells Google what permissions Jeeves needs.
-
-1. Go to: **APIs & Services** → **OAuth consent screen** (in the left menu)
-2. Click **CREATE**
-3. Fill in the form:
-
-   | Field | What to enter |
-   |-------|---------------|
-   | User Type | **External** (unless you have a Google Workspace) |
-   | App name | `Jeeves` |
-   | User support email | Your email address |
-   | Developer contact email | Your email address |
-
-4. Click **SAVE AND CONTINUE** (you can skip scopes for now)
-5. Click **SAVE AND CONTINUE** again (skip test users)
-6. Click **BACK TO DASHBOARD**
-
----
-
-## Step 4: Create OAuth Credentials
-
-Now we create the "keys" that let Jeeves access your Gmail.
-
-1. Go to: **APIs & Services** → **Credentials** (in the left menu)
-2. Click **+ CREATE CREDENTIALS** (top of page)
-3. Select **OAuth client ID**
-4. Fill in:
-
-   | Field | What to enter |
-   |-------|---------------|
-   | Application type | **Desktop app** |
-   | Name | `Jeeves Desktop Client` |
-
-5. Click **CREATE**
-6. A popup will appear — click **DOWNLOAD JSON**
-7. This downloads a file named something like `client_secret_12345.json`
-
----
-
-## Step 5: Save the Credentials File
-
-1. Create a folder named `data` in the jeeves repo:
-   ```bash
-   mkdir -p data
-   ```
-
-2. Rename your downloaded file to `credentials.json`
-3. Move it into the `data` folder:
-   ```bash
-   # Mac/Linux
-   mv ~/Downloads/client_secret_*.json data/credentials.json
-   
-   # Windows (in File Explorer)
-   # Copy the file into the data folder
-   ```
-
----
-
-## Step 6: First Run (Authenticate)
-
-Now we'll test that everything works. When you run this, a browser window will open asking you to grant permission.
-
-```bash
-# Activate the virtual environment (if not already activated)
-source venv/bin/activate   # Mac/Linux
-# or
-venv\Scripts\activate       # Windows
-
-# Test Gmail connection
-python -c "from src.gmail_client import GmailClient; c = GmailClient(); print('Success!', len(c.list_emails(5)), 'emails fetched')"
-```
-
-**What happens:**
-1. A browser window opens
-2. Sign in to your Google account (if not already)
-3. You'll see a warning: "Google hasn't verified this app" — this is **normal** for personal projects
-4. Click **Advanced** → **Go to Jeeves (unsafe)** (or similar)
-5. Click **Allow** for the three permissions (Read, Compose, Send)
-6. The browser will show "You can close this window"
-7. Switch back to your terminal — you should see "Success! 5 emails fetched"
-
-If it worked, you're all set!
-
----
-
-## Step 7: What Just Happened?
-
-After authenticating, Google gave Jeeves a "refresh token" that lets it access your email without asking for permission every time.
-
-This token is saved in: `data/gmail_token.json`
-
-**⚠️ Important:** Add this file to `.gitignore` so you don't accidentally commit it to Git:
-```bash
-echo "data/gmail_token.json" >> .gitignore
-```
-
----
-
-## Troubleshooting
-
-### "Client is not authorized to access this API"
-- Go back to Step 2 and make sure you clicked **ENABLE** on the Gmail API
-
-### "invalid_client"
-- Check that `data/credentials.json` exists and contains valid JSON
-- Make sure you didn't accidentally edit the file
-
-### Browser doesn't open
-- Run the command with `--noauth_local_webserver` flag and copy the URL manually
-
-### "This app is not verified"
-- This is normal for self-hosted apps
-- Click "Advanced" → "Go to [App Name] (unsafe)" to proceed
-
-### Token expired or revoked
-- Delete `data/gmail_token.json` and run Step 6 again
-
----
-
-## Common Issues
-
-**Q: Does Jeeves store my email password?**
-No. It uses OAuth, which means you give permission through Google directly. Jeeves never sees your password.
-
-**Q: Can I revoke access later?**
-Yes. Go to your Google Account → Security → Third-party app access → Manage third-party access → Remove Jeeves.
-
-**Q: Does this work with Google Workspace / business accounts?**
-Yes, but you may need an admin to approve the app. For personal Gmail, it works out of the box.
-
----
-
-## Development Setup
-
-```bash
-# Clone
-git clone https://github.com/alexlinyx/jeeves.git
-cd jeeves
-
-# Set up Python environment
-python3 -m venv venv
-source venv/bin/activate
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure Gmail (see steps above)
-mkdir -p data
-# ... download credentials.json to data/ ...
+# Install Ollama and download model
+# See: https://ollama.ai
+ollama pull mistral:7b-instruct
 
-# Test it works
-python -c "from src.gmail_client import GmailClient; print(GmailClient().list_emails(1))"
-
-# Run tests
-pytest tests/ -v
+# Set up Gmail OAuth (see docs/gmail-setup.md)
 ```
 
----
+### Configuration
 
-## Roadmap
+```bash
+# Copy example config
+cp .env.example .env
 
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 1.1 | Environment Setup | ✅ Done |
-| 1.2 | Gmail OAuth | 🔄 In Progress |
-| 1.3 | Email Ingestion | 🔜 Planned |
-| 2 | AI/ML Core (LLM, RAG) | 🔜 Planned |
-| 3 | UI (Gradio dashboard) | 🔜 Planned |
-| 4 | Automation (watcher, auto-send) | 🔜 Planned |
+# Edit with your settings
+nano .env
+```
 
----
+Required environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OLLAMA_BASE_URL` | Ollama API URL | `http://localhost:11434` |
+| `DEFAULT_MODEL` | LLM model | `mistral:7b-instruct` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+| `DATA_DIR` | Data directory | `./data` |
+| `MODELS_DIR` | Models directory | `./models` |
+
+For Gmail OAuth setup, see [Gmail Setup Guide](docs/gmail-setup.md).
+
+### Run
+
+```bash
+# Ingest your email history (one-time)
+python -m src.ingest --mbox ~/Downloads/takeout.mbox --user-email you@example.com
+
+# Start the dashboard
+python -m src.dashboard
+
+# Or run in background with email watcher
+python -m src.watcher
+```
+
+## Usage
+
+### Dashboard
+
+Open http://localhost:7860 to access the Gradio dashboard.
+
+1. View pending drafts in the table
+2. Select a draft to review
+3. Edit the draft text if needed
+4. Choose a tone (casual/formal/concise/match_style)
+5. Click Approve to send, or Delete to discard
+
+### Tone Modes
+
+| Mode | Description |
+|------|-------------|
+| `casual` | Friendly, conversational, uses contractions |
+| `formal` | Professional, proper grammar, polite |
+| `concise` | Brief, to-the-point, minimal fluff |
+| `match_style` | Mimics your writing style from past emails |
+
+### Notifications
+
+Set up push notifications via ntfy.sh:
+
+```bash
+# Set your topic in .env
+NTFY_TOPIC=your-unique-topic
+
+# Subscribe on your phone
+# iOS: https://apps.apple.com/app/ntfy
+# Android: https://play.google.com/store/apps/details?id=io.heckel.ntfy
+```
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design details.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 
-MIT
-
----
-
-*"Indeed, sir, I endeavor to give satisfaction."* 🎩
+MIT License - see [LICENSE](LICENSE)
