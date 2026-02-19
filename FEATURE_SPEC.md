@@ -16,12 +16,12 @@ Build the Retrieval-Augmented Generation pipeline to index training emails into 
 ## Acceptance Criteria
 
 - [ ] ChromaDB installed and working
-- [ ] Embedding model downloaded (`BAAI/bge-base-en-v1.5`)
-- [ ] `src/rag.py` implements RAG pipeline
-- [ ] `index_emails(csv_path)` indexes training emails
-- [ ] `search(query, top_k=5)` returns relevant emails
-- [ ] Test: Query "refund request" → returns 5 similar past emails
-- [ ] Unit tests pass
+- [x] Embedding model downloaded (`BAAI/bge-base-en-v1.5`)
+- [x] `src/rag.py` implements RAG pipeline
+- [x] `index_emails(csv_path)` indexes training emails
+- [x] `search(query, top_k=5)` returns relevant emails
+- [ ] Test: Query "refund request" → returns 5 similar past emails (needs indexed data)
+- [x] Unit tests pass
 
 ---
 
