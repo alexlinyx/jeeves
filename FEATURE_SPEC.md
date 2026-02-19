@@ -1,303 +1,206 @@
-# Feature Spec: Email Ingestion Pipeline
+# Feature Spec: LLM Setup
 
-**Phase:** 1.3  
-**Branch:** `feature/1.3-email-ingestion`  
+**Phase:** 2.1  
+**Branch:** `feature/2.1-llm-setup`  
 **Priority:** P0 (Blocking)  
-**Est. Time:** 14 hours
+**Est. Time:** 5 hours
 
 ---
 
 ## Objective
 
-Build the pipeline to ingest email history from Gmail, extract training data (sent emails), and save as CSV for downstream AI training.
+Set up local LLM inference using Ollama and create a Python wrapper for generating email responses.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Gmail Takeout export instructions provided to user
-- [x] `src/ingest.py` can parse `.mbox` files
-- [x] Extracts sent emails (from "Sent" folder or by filtering `sent_by_you` field)
-- [x] Outputs `data/training_emails.csv` with schema:
-  - `thread_id`
-  - `from`
-  - `subject`
-  - `body_text`
-  - `sent_by_you` (boolean)
-  - `timestamp`
-- [x] Command `python src/ingest.py --mbox ~/Downloads/takeout.mbox` produces valid CSV
-- [x] Unit tests for parser pass
+- [ ] Ollama installed and running
+- [ ] Base model pulled (`mistral:7b-instruct` or similar)
+- [x] `src/llm.py` implements LLM wrapper class
+- [x] `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"` works (needs Ollama)
+- [x] Unit tests pass
 
 ---
 
 ## Deliverable
 
-### `src/ingest.py`
+### `src/llm.py`
 
 ```python
-"""Email ingestion from Gmail Takeout .mbox files."""
-import argparse
-import csv
+"""Local LLM wrapper using Ollama."""
 import os
-from datetime import datetime
-from email import policy
-from email.parser import BytesParser
-from mailbox import mbox
+import json
 from typing import List, Dict, Optional
-import re
 
 
-def parse_mbox(mbox_path: str, output_csv: str = "data/training_emails.csv") -> int:
-    """Parse .mbox file and extract email data.
+class LLM:
+    """Ollama LLM wrapper for generating email responses."""
+    
+    DEFAULT_MODEL = "mistral:7b-instruct"
+    DEFAULT_BASE_URL = "http://localhost:11434"
+    
+    def __init__(
+        self,
+        model: str = None,
+        base_url: str = None,
+        temperature: float = 0.7,
+        max_tokens: int = 500
+    ):
+        """Initialize LLM wrapper.
+        
+        Args:
+            model: Model name (default: mistral:7b-instruct)
+            base_url: Ollama API base URL
+            temperature: Sampling temperature (0.0-1.0)
+            max_tokens: Maximum tokens to generate
+        """
+        self.model = model or os.environ.get('OLLAMA_MODEL', self.DEFAULT_MODEL)
+        self.base_url = base_url or os.environ.get('OLLAMA_BASE_URL', self.DEFAULT_BASE_URL)
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+    
+    def generate(self, prompt: str, system_prompt: str = None) -> str:
+        """Generate text from prompt.
+        
+        Args:
+            prompt: User prompt
+            system_prompt: Optional system prompt
+            
+        Returns:
+            Generated text
+        """
+        pass
+    
+    def generate_with_context(
+        self,
+        prompt: str,
+        context_docs: List[str],
+        system_prompt: str = None
+    ) -> str:
+        """Generate text with RAG context.
+        
+        Args:
+            prompt: User prompt
+            context_docs: List of relevant documents to include
+            system_prompt: Optional system prompt
+            
+        Returns:
+            Generated text
+        """
+        pass
+    
+    def chat(
+        self,
+        messages: List[Dict[str, str]]
+    ) -> str:
+        """Chat completion style interface.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            
+        Returns:
+            Assistant response
+        """
+        pass
+    
+    def is_available(self) -> bool:
+        """Check if Ollama is running and model is available.
+        
+        Returns:
+            True if LLM is accessible
+        """
+        pass
+    
+    def list_models(self) -> List[str]:
+        """List available models.
+        
+        Returns:
+            List of model names
+        """
+        pass
+
+
+# Convenience functions
+
+def generate(prompt: str, **kwargs) -> str:
+    """Quick generate function.
     
     Args:
-        mbox_path: Path to the .mbox file
-        output_csv: Path to output CSV file
+        prompt: User prompt
+        **kwargs: Additional args passed to LLM.generate()
         
     Returns:
-        Number of emails processed
+        Generated text
     """
-    pass
+    llm = LLM(**kwargs)
+    return llm.generate(prompt)
 
 
-def extract_email_address(header_value: str) -> str:
-    """Extract email address from From header.
+def generate_with_context(prompt: str, context_docs: List[str], **kwargs) -> str:
+    """Quick generate with context function.
     
     Args:
-        header_value: Full From header (e.g., "John Doe <john@example.com>")
+        prompt: User prompt
+        context_docs: Documents to include as context
+        **kwargs: Additional args
         
     Returns:
-        Email address only
+        Generated text
     """
-    pass
-
-
-def clean_body(body: str) -> str:
-    """Clean email body text.
-    
-    - Remove quoted replies (lines starting with >)
-    - Remove signatures (-- \n...)
-    - Strip whitespace
-    - Remove excessive newlines
-    
-    Args:
-        body: Raw email body
-        
-    Returns:
-        Cleaned body text
-    """
-    pass
-
-
-def is_sent_email(email_message, user_email: str) -> bool:
-    """Determine if email was sent by user.
-    
-    Checks:
-    - Is in Sent folder (folder name)
-    - From address matches user's email
-    - X-Gmail-Labels contains "Sent"
-    
-    Args:
-        email_message: email.message.Message object
-        user_email: User's email address
-        
-    Returns:
-        True if sent by user
-    """
-    pass
-
-
-def get_timestamp(email_message) -> Optional[str]:
-    """Extract timestamp from email.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        ISO format timestamp or None
-    """
-    pass
-
-
-def extract_thread_id(email_message) -> Optional[str]:
-    """Extract thread ID from email headers.
-    
-    Looks in:
-    - X-Gmail-Thread-Top
-    - X-Gmail-Thread-Index
-    - References header
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Thread ID or None
-    """
-    pass
-
-
-def extract_subject(email_message) -> str:
-    """Extract subject line, handling Re:, Fwd:, etc.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Cleaned subject line
-    """
-    pass
-
-
-def extract_body(email_message) -> str:
-    """Extract body text from email.
-    
-    Handles:
-    - Plain text
-    - HTML (strips tags)
-    - Multipart (prefers plain text)
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Body text
-    """
-    pass
-
-
-def filter_useful_email(body: str, subject: str) -> bool:
-    """Filter out auto-generated emails.
-    
-    Excludes:
-    - Auto-replies (auto-generated, auto-reply, out of office)
-    - Bounces (delivery failed, undelivered)
-    - Notifications (new followup, mention)
-    - Empty or very short emails
-    
-    Args:
-        body: Email body text
-        subject: Email subject
-        
-    Returns:
-        True if email is useful for training
-    """
-    # Auto-generated patterns
-    auto_patterns = [
-        r'auto-?generated',
-        r'auto-?reply',
-        r'out of office',
-        r'ooo',
-        r'delivery failed',
-        r'undelivered',
-        r'mailer-?daemon',
-        r'noreply',
-        r'no-?reply',
-        r'don\'t reply',
-        r'notification',
-    ]
-    
-    # Check subject and body
-    text = (subject + ' ' + body).lower()
-    for pattern in auto_patterns:
-        if re.search(pattern, text):
-            return False
-    
-    # Minimum length check
-    if len(body.strip()) < 50:
-        return False
-    
-    return True
-
-
-def main():
-    """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Ingest emails from Gmail Takeout .mbox file"
-    )
-    parser.add_argument(
-        "--mbox",
-        required=True,
-        help="Path to .mbox file from Google Takeout"
-    )
-    parser.add_argument(
-        "--output",
-        default="data/training_emails.csv",
-        help="Output CSV file path"
-    )
-    parser.add_argument(
-        "--user-email",
-        help="Your email address (to detect sent emails)"
-    )
-    parser.add_argument(
-        "--sent-only",
-        action="store_true",
-        help="Only extract sent emails (skip inbox)"
-    )
-    
-    args = parser.parse_args()
-    
-    count = parse_mbox(args.mbox, args.output)
-    print(f"Processed {count} emails -> {args.output}")
-
-
-if __name__ == "__main__":
-    main()
+    llm = LLM(**kwargs)
+    return llm.generate_with_context(prompt, context_docs)
 ```
 
 ---
 
-## Output Format
+## Configuration
 
-### `data/training_emails.csv`
+### Environment Variables
 
-```csv
-thread_id,from,subject,body_text,sent_by_you,timestamp
-123abc,"John Doe <john@example.com>","Re: Project update","Hey team, just wanted to...","True","2024-01-15T10:30:00Z"
-456def,"Jane Smith <jane@company.com>","Meeting notes","Here are the notes from...","False","2024-01-15T09:15:00Z"
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_BASE_URL` | http://localhost:11434 | Ollama API URL |
+| `OLLAMA_MODEL` | mistral:7b-instruct | Default model |
+| `OLLAMA_TEMPERATURE` | 0.7 | Generation temperature |
 
-| Column | Type | Description |
-|--------|------|-------------|
-| thread_id | string | Gmail thread ID (or generated hash) |
-| from | string | Sender email (with name if available) |
-| subject | string | Email subject line |
-| body_text | string | Cleaned email body |
-| sent_by_you | boolean | True if user sent this email |
-| timestamp | ISO 8601 | When email was sent/received |
+### Model Options
+
+Recommended models for email assistant:
+- `mistral:7b-instruct` - Fast, good quality (recommended)
+- `llama2:7b` - Meta's model
+- `mixtral:8x7b` - More powerful, needs more RAM
+- `phi:2.7b` - Lightweight option
 
 ---
 
 ## Tasks
 
-### 1.3.1 User Instructions for Gmail Takeout (1 hr)
-- [ ] Document how to export Gmail via Google Takeout
-- [ ] Include step-by-step with expected wait time (24-48 hrs)
+### 2.1.1 Install Ollama (30 min)
+- [ ] Install Ollama: `curl -fsSL https://ollama.com/install.sh | sh`
+- [ ] Start Ollama service: `ollama serve`
+- [ ] Verify running: `ollama list`
 
-### 1.3.2 Build Mbox Parser (4 hrs)
-- [ ] Parse .mbox file format
-- [ ] Handle large files (streaming if needed)
-- [ ] Extract all required fields
+### 2.1.2 Pull Base Model (10 min)
+- [ ] Pull model: `ollama pull mistral:7b-instruct`
+- [ ] Test: `ollama run mistral:7b-instruct "Hello"`
 
-### 1.3.3 Detect Sent Emails (4 hrs)
-- [ ] Detect "Sent" folder
-- [ ] Match user's email address in From
-- [ ] Handle X-Gmail-Labels
+### 2.1.3 Build LLM Wrapper (3 hrs)
+- [ ] Implement `LLM` class with all methods
+- [ ] Handle API calls to Ollama
+- [ ] Add error handling
+- [ ] Add retry logic for failures
 
-### 1.3.4 Clean Email Data (2 hrs)
-- [ ] Strip signatures
-- [ ] Remove quoted replies
-- [ ] Filter auto-generated emails
-- [ ] Handle HTML → text conversion
+### 2.1.4 Test Integration (1 hr)
+- [ ] Test: `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"`
+- [ ] Test with longer prompts
+- [ ] Test with context
 
-### 1.3.5 Output CSV (1 hr)
-- [ ] Write to CSV with correct schema
-- [ ] Handle special characters (encoding)
-- [ ] Create data/ directory if needed
-
-### 1.3.6 Tests (2 hrs)
-- [ ] Unit tests for each function
-- [ ] Test with sample .mbox file
-- [ ] Verify CSV output schema
+### 2.1.5 Unit Tests (30 min)
+- [ ] Test LLM class initialization
+- [ ] Test generate method
+- [ ] Test is_available method
+- [ ] Mock tests for API calls
 
 ---
 
@@ -305,63 +208,60 @@ thread_id,from,subject,body_text,sent_by_you,timestamp
 
 | Dependency | Purpose |
 |------------|---------|
-| python-email | Standard library email parsing |
-| mailbox | Standard library .mbox handling |
-| html2text | Convert HTML to plain text |
+| requests | HTTP calls to Ollama API |
+| python-dotenv | Environment variable loading |
 
 ---
 
 ## Testing
 
 ```bash
-# Basic usage
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --output data/training_emails.csv
+# Test basic generation
+python -c "from src.llm import LLM; print(LLM().generate('Hello'))"
 
-# With user email (better sent detection)
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --user-email your@email.com
+# Test with context
+python -c "
+from src.llm import LLM
+llm = LLM()
+docs = ['Previous email: Thanks for the update!', 'Your writing style is concise.']
+print(llm.generate_with_context('Draft a reply to the project update', docs))
+"
 
-# Sent emails only
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --sent-only
+# Test chat
+python -c "
+from src.llm import LLM
+llm = LLM()
+messages = [
+    {'role': 'user', 'content': 'Hello'},
+]
+print(llm.chat(messages))
+"
+
+# Test availability
+python -c "from src.llm import LLM; print(LLM().is_available())"
 
 # Run tests
-pytest tests/test_ingest.py -v
+pytest tests/test_llm.py -v
 ```
-
----
-
-## Google Takeout Instructions (to include in docs)
-
-1. Go to: https://takeout.google.com/
-2. Sign in with your Google account
-3. Click **"Create a new export"**
-4. Select **Gmail** (only)
-5. Click **All Mail** (include starred, important, etc.)
-6. Click **Next**
-7. Export format: **.mbox** (not .json)
-8. File frequency: **Once**
-9. Click **Create export**
-10. Wait 24-48 hours for Google to prepare your download
-11. Download and unzip
-12. Find the `.mbox` file in the extracted folder
 
 ---
 
 ## Notes
 
-- Gmail Takeout produces one `.mbox` file per label/folder
-- Main files of interest: `All Mail.mbox`, `Sent.mbox`, `INBOX.mbox`
-- Large accounts: Takeout can produce GBs of data
-- Parser should handle malformed emails gracefully
+- Ollama must be running locally (or accessible via network)
+- First model pull takes time (GBs)
+- GPU recommended but CPU works (slower)
+- Model stays loaded in memory for fast inference
 
 ---
 
 ## Definition of Done
 
-1. `src/ingest.py` implements all functions in deliverable spec
-2. `python src/ingest.py --mbox <file>` produces valid CSV
-3. CSV has correct schema: thread_id, from, subject, body_text, sent_by_you, timestamp
-4. Auto-generated emails are filtered out
-5. Unit tests pass
-6. Google Takeout instructions documented
+1. Ollama installed and model pulled
+2. `src/llm.py` implements LLM wrapper
+3. `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"` succeeds
+4. `generate_with_context()` works with RAG docs
+5. `chat()` works with message history
+6. Unit tests pass
 7. Branch pushed to GitHub
 8. PR created
