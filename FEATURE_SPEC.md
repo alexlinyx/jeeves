@@ -1,367 +1,532 @@
-# Feature Spec: Email Ingestion Pipeline
+# Feature Spec: Documentation
 
-**Phase:** 1.3  
-**Branch:** `feature/1.3-email-ingestion`  
-**Priority:** P0 (Blocking)  
-**Est. Time:** 14 hours
+**Phase:** 5.3  
+**Branch:** `feature/5.3-documentation`  
+**Priority:** P2  
+**Est. Time:** 6 hours
 
 ---
 
 ## Objective
 
-Build the pipeline to ingest email history from Gmail, extract training data (sent emails), and save as CSV for downstream AI training.
+Create comprehensive documentation for users and developers to understand, install, configure, and extend Jeeves.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Gmail Takeout export instructions provided to user
-- [x] `src/ingest.py` can parse `.mbox` files
-- [x] Extracts sent emails (from "Sent" folder or by filtering `sent_by_you` field)
-- [x] Outputs `data/training_emails.csv` with schema:
-  - `thread_id`
-  - `from`
-  - `subject`
-  - `body_text`
-  - `sent_by_you` (boolean)
-  - `timestamp`
-- [x] Command `python src/ingest.py --mbox ~/Downloads/takeout.mbox` produces valid CSV
-- [x] Unit tests for parser pass
+- [ ] `README.md` complete with install + usage
+- [ ] `ARCHITECTURE.md` documents system design
+- [ ] `CONTRIBUTING.md` for contributors
+- [ ] `CHANGELOG.md` for version history
+- [ ] API documentation for all modules
+- [ ] Configuration guide
+- [ ] Troubleshooting guide
+- [ ] Demo video recorded
+- [ ] New developer can set up in <30 min
 
 ---
 
 ## Deliverable
 
-### `src/ingest.py`
+### `README.md`
 
-```python
-"""Email ingestion from Gmail Takeout .mbox files."""
-import argparse
-import csv
-import os
-from datetime import datetime
-from email import policy
-from email.parser import BytesParser
-from mailbox import mbox
-from typing import List, Dict, Optional
-import re
+```markdown
+# Jeeves - AI Email Assistant
 
+Jeeves is an AI-powered email assistant that learns your writing style and drafts responses automatically.
 
-def parse_mbox(mbox_path: str, output_csv: str = "data/training_emails.csv") -> int:
-    """Parse .mbox file and extract email data.
-    
-    Args:
-        mbox_path: Path to the .mbox file
-        output_csv: Path to output CSV file
-        
-    Returns:
-        Number of emails processed
-    """
-    pass
+## Features
 
+- 🤖 **AI-Powered Responses** - Uses local LLM (Ollama) to generate contextual replies
+- 📚 **Style Learning** - Learns from your past emails to match your writing style
+- 🎨 **Multiple Tones** - Casual, formal, concise, or style-match modes
+- 🔒 **Privacy First** - All processing happens locally, no data leaves your machine
+- 📊 **Review Dashboard** - Gradio UI to review and edit drafts before sending
+- 🔔 **Push Notifications** - Get notified when new drafts are ready
 
-def extract_email_address(header_value: str) -> str:
-    """Extract email address from From header.
-    
-    Args:
-        header_value: Full From header (e.g., "John Doe <john@example.com>")
-        
-    Returns:
-        Email address only
-    """
-    pass
+## Quick Start
 
+### Prerequisites
 
-def clean_body(body: str) -> str:
-    """Clean email body text.
-    
-    - Remove quoted replies (lines starting with >)
-    - Remove signatures (-- \n...)
-    - Strip whitespace
-    - Remove excessive newlines
-    
-    Args:
-        body: Raw email body
-        
-    Returns:
-        Cleaned body text
-    """
-    pass
+- Python 3.11+
+- Ollama (for local LLM)
+- Gmail account with API access
 
+### Installation
 
-def is_sent_email(email_message, user_email: str) -> bool:
-    """Determine if email was sent by user.
-    
-    Checks:
-    - Is in Sent folder (folder name)
-    - From address matches user's email
-    - X-Gmail-Labels contains "Sent"
-    
-    Args:
-        email_message: email.message.Message object
-        user_email: User's email address
-        
-    Returns:
-        True if sent by user
-    """
-    pass
+\`\`\`bash
+# Clone the repository
+git clone https://github.com/alexlinyx/jeeves.git
+cd jeeves
 
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 
-def get_timestamp(email_message) -> Optional[str]:
-    """Extract timestamp from email.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        ISO format timestamp or None
-    """
-    pass
+# Install dependencies
+pip install -r requirements.txt
 
+# Install Ollama and download model
+# See: https://ollama.ai
+ollama pull mistral:7b-instruct
 
-def extract_thread_id(email_message) -> Optional[str]:
-    """Extract thread ID from email headers.
-    
-    Looks in:
-    - X-Gmail-Thread-Top
-    - X-Gmail-Thread-Index
-    - References header
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Thread ID or None
-    """
-    pass
+# Set up Gmail OAuth
+# See: docs/gmail-setup.md
+\`\`\`
 
+### Configuration
 
-def extract_subject(email_message) -> str:
-    """Extract subject line, handling Re:, Fwd:, etc.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Cleaned subject line
-    """
-    pass
+\`\`\`bash
+# Copy example config
+cp .env.example .env
 
+# Edit with your settings
+nano .env
+\`\`\`
 
-def extract_body(email_message) -> str:
-    """Extract body text from email.
-    
-    Handles:
-    - Plain text
-    - HTML (strips tags)
-    - Multipart (prefers plain text)
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Body text
-    """
-    pass
+Required environment variables:
 
+\`\`\`
+GMAIL_CREDENTIALS_PATH=data/credentials.json
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=mistral:7b-instruct
+\`\`\`
 
-def filter_useful_email(body: str, subject: str) -> bool:
-    """Filter out auto-generated emails.
-    
-    Excludes:
-    - Auto-replies (auto-generated, auto-reply, out of office)
-    - Bounces (delivery failed, undelivered)
-    - Notifications (new followup, mention)
-    - Empty or very short emails
-    
-    Args:
-        body: Email body text
-        subject: Email subject
-        
-    Returns:
-        True if email is useful for training
-    """
-    # Auto-generated patterns
-    auto_patterns = [
-        r'auto-?generated',
-        r'auto-?reply',
-        r'out of office',
-        r'ooo',
-        r'delivery failed',
-        r'undelivered',
-        r'mailer-?daemon',
-        r'noreply',
-        r'no-?reply',
-        r'don\'t reply',
-        r'notification',
-    ]
-    
-    # Check subject and body
-    text = (subject + ' ' + body).lower()
-    for pattern in auto_patterns:
-        if re.search(pattern, text):
-            return False
-    
-    # Minimum length check
-    if len(body.strip()) < 50:
-        return False
-    
-    return True
+### Run
 
+\`\`\`bash
+# Ingest your email history (one-time)
+python -m src.ingest --mbox ~/Downloads/takeout.mbox --user-email you@example.com
 
-def main():
-    """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Ingest emails from Gmail Takeout .mbox file"
-    )
-    parser.add_argument(
-        "--mbox",
-        required=True,
-        help="Path to .mbox file from Google Takeout"
-    )
-    parser.add_argument(
-        "--output",
-        default="data/training_emails.csv",
-        help="Output CSV file path"
-    )
-    parser.add_argument(
-        "--user-email",
-        help="Your email address (to detect sent emails)"
-    )
-    parser.add_argument(
-        "--sent-only",
-        action="store_true",
-        help="Only extract sent emails (skip inbox)"
-    )
-    
-    args = parser.parse_args()
-    
-    count = parse_mbox(args.mbox, args.output)
-    print(f"Processed {count} emails -> {args.output}")
+# Start the dashboard
+python -m src.dashboard
 
+# Or run in background with email watcher
+python -m src.watcher
+\`\`\`
 
-if __name__ == "__main__":
-    main()
+## Usage
+
+### Dashboard
+
+Open http://localhost:7860 to access the Gradio dashboard.
+
+1. View pending drafts in the table
+2. Select a draft to review
+3. Edit the draft text if needed
+4. Choose a tone (casual/formal/concise/match_style)
+5. Click Approve to send, or Delete to discard
+
+### Tone Modes
+
+| Mode | Description |
+|------|-------------|
+| `casual` | Friendly, conversational, uses contractions |
+| `formal` | Professional, proper grammar, polite |
+| `concise` | Brief, to-the-point, minimal fluff |
+| `match_style` | Mimics your writing style from past emails |
+
+### Notifications
+
+Set up push notifications via ntfy.sh:
+
+\`\`\`bash
+# Set your topic in .env
+NTFY_TOPIC=your-unique-topic
+
+# Subscribe on your phone
+# iOS: https://apps.apple.com/app/ntfy
+# Android: https://play.google.com/store/apps/details?id=io.heckel.ntfy
+\`\`\`
+
+## Architecture
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for system design.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+## License
+
+MIT License - see [LICENSE](LICENSE)
 ```
 
----
+### `ARCHITECTURE.md`
 
-## Output Format
+```markdown
+# Jeeves Architecture
 
-### `data/training_emails.csv`
+## System Overview
 
-```csv
-thread_id,from,subject,body_text,sent_by_you,timestamp
-123abc,"John Doe <john@example.com>","Re: Project update","Hey team, just wanted to...","True","2024-01-15T10:30:00Z"
-456def,"Jane Smith <jane@company.com>","Meeting notes","Here are the notes from...","False","2024-01-15T09:15:00Z"
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│                           Jeeves                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+│  │   Gmail     │    │   Email     │    │   Response  │          │
+│  │   Client    │───▶│   Watcher   │───▶│   Generator │          │
+│  └─────────────┘    └─────────────┘    └──────┬──────┘          │
+│         │                                     │                  │
+│         │              ┌─────────────┐        │                  │
+│         │              │     RAG     │◀───────┤                  │
+│         │              │  Pipeline   │        │                  │
+│         │              └──────┬──────┘        │                  │
+│         │                     │               │                  │
+│         ▼                     ▼               ▼                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+│  │  Database   │    │  ChromaDB   │    │    LLM      │          │
+│  │  (SQLite)   │    │  (Vectors)  │    │  (Ollama)   │          │
+│  └─────────────┘    └─────────────┘    └─────────────┘          │
+│                                                                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+│  │  Dashboard  │    │  Confidence │    │  Notifier   │          │
+│  │  (Gradio)   │    │   Scorer    │    │  (ntfy.sh)  │          │
+│  └─────────────┘    └─────────────┘    └─────────────┘          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
+
+## Components
+
+### Core Modules
+
+| Module | Purpose | Dependencies |
+|--------|---------|--------------|
+| `gmail_client.py` | Gmail API wrapper | google-api-python-client |
+| `ingest.py` | Email ingestion from mbox | mailbox |
+| `llm.py` | Ollama LLM wrapper | requests |
+| `rag.py` | ChromaDB RAG pipeline | chromadb, sentence-transformers |
+| `response_generator.py` | Draft generation | llm, rag |
+
+### Automation Modules
+
+| Module | Purpose | Dependencies |
+|--------|---------|--------------|
+| `watcher.py` | Email polling service | gmail_client, response_generator |
+| `confidence.py` | Confidence scoring | rag |
+| `db.py` | SQLite database layer | sqlite3 |
+| `notifier.py` | Push notifications | requests |
+
+### Interface Modules
+
+| Module | Purpose | Dependencies |
+|--------|---------|--------------|
+| `dashboard.py` | Gradio web UI | gradio, db |
+
+### Utility Modules
+
+| Module | Purpose | Dependencies |
+|--------|---------|--------------|
+| `logger.py` | Structured logging | structlog |
+| `metrics.py` | Metrics collection | - |
+| `security.py` | Security utilities | - |
+
+## Data Flow
+
+### Email Processing Flow
+
+\`\`\`
+1. Email Watcher polls Gmail (every 5 min)
+   │
+   ▼
+2. Filter: skip spam, promotional, noreply
+   │
+   ▼
+3. Store email in Database
+   │
+   ▼
+4. RAG: find similar past emails
+   │
+   ▼
+5. LLM: generate draft response
+   │
+   ▼
+6. Confidence Scorer: rate draft quality
+   │
+   ├── High confidence + low risk → Auto-send (optional)
+   │
+   └── Medium/Low confidence → Queue for review
+   │
+   ▼
+7. Notifier: push notification
+   │
+   ▼
+8. Dashboard: user reviews/approves
+   │
+   ▼
+9. Gmail Client: send approved draft
+\`\`\`
+
+### Style Learning Flow
+
+\`\`\`
+1. Ingest: parse mbox file
+   │
+   ▼
+2. Extract: sent emails only
+   │
+   ▼
+3. Embed: create vector embeddings
+   │
+   ▼
+4. Index: store in ChromaDB
+   │
+   ▼
+5. Query: find similar emails for context
+\`\`\`
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GMAIL_CREDENTIALS_PATH` | `data/credentials.json` | OAuth credentials |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API URL |
+| `OLLAMA_MODEL` | `mistral:7b-instruct` | LLM model |
+| `EMBEDDING_MODEL` | `BAAI/bge-base-en-v1.5` | Embedding model |
+| `POLL_INTERVAL` | `300` | Email poll interval (seconds) |
+| `AUTO_SEND_THRESHOLD` | `0.9` | Confidence threshold for auto-send |
+| `NTFY_TOPIC` | `jeeves-drafts` | ntfy.sh topic |
+
+### Database Schema
+
+\`\`\`sql
+-- Emails table
+CREATE TABLE emails (
+    id INTEGER PRIMARY KEY,
+    thread_id TEXT,
+    message_id TEXT UNIQUE,
+    sender TEXT,
+    recipient TEXT,
+    subject TEXT,
+    body_text TEXT,
+    body_html TEXT,
+    received_at TEXT,
+    processed INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Drafts table
+CREATE TABLE drafts (
+    id INTEGER PRIMARY KEY,
+    email_id INTEGER,
+    generated_text TEXT,
+    tone TEXT,
+    status TEXT DEFAULT 'pending',
+    confidence REAL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT,
+    sent_at TEXT,
+    FOREIGN KEY (email_id) REFERENCES emails(id)
+);
+\`\`\`
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for security architecture.
+
+## Performance
+
+### Benchmarks
+
+| Operation | Time | Memory |
+|-----------|------|--------|
+| Email ingestion (1000 emails) | ~30s | ~200MB |
+| RAG indexing (1000 emails) | ~2min | ~500MB |
+| Draft generation | ~3-5s | ~100MB |
+| Dashboard load | <1s | ~50MB |
+
+### Optimization Tips
+
+1. Use SSD for ChromaDB storage
+2. Allocate 8GB+ RAM for Ollama
+3. Use GPU for faster LLM inference
+4. Increase batch size for bulk ingestion
 ```
 
-| Column | Type | Description |
-|--------|------|-------------|
-| thread_id | string | Gmail thread ID (or generated hash) |
-| from | string | Sender email (with name if available) |
-| subject | string | Email subject line |
-| body_text | string | Cleaned email body |
-| sent_by_you | boolean | True if user sent this email |
-| timestamp | ISO 8601 | When email was sent/received |
+### `CONTRIBUTING.md`
+
+```markdown
+# Contributing to Jeeves
+
+Thank you for your interest in contributing to Jeeves!
+
+## Development Setup
+
+\`\`\`bash
+# Clone and set up
+git clone https://github.com/alexlinyx/jeeves.git
+cd jeeves
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Run tests
+pytest tests/ -v
+
+# Run linting
+ruff check src/
+black --check src/
+\`\`\`
+
+## Project Structure
+
+\`\`\`
+jeeves/
+├── src/              # Main source code
+│   ├── gmail_client.py
+│   ├── ingest.py
+│   ├── llm.py
+│   ├── rag.py
+│   ├── response_generator.py
+│   ├── watcher.py
+│   ├── confidence.py
+│   ├── db.py
+│   ├── dashboard.py
+│   ├── notifier.py
+│   ├── logger.py
+│   ├── metrics.py
+│   └── security.py
+├── tests/            # Test files
+├── data/             # Data files (gitignored)
+├── logs/             # Log files (gitignored)
+├── docs/             # Documentation
+└── requirements.txt
+\`\`\`
+
+## Branch Naming
+
+- `feature/X.Y-description` - New features
+- `fix/description` - Bug fixes
+- `docs/description` - Documentation updates
+- `refactor/description` - Code refactoring
+
+## Commit Messages
+
+Follow conventional commits:
+
+\`\`\`
+feat: add new feature
+fix: fix bug in X
+docs: update documentation
+refactor: restructure X
+test: add tests for X
+\`\`\`
+
+## Pull Request Process
+
+1. Create feature branch from `master`
+2. Make changes with tests
+3. Run tests: `pytest tests/ -v`
+4. Run linting: `ruff check src/`
+5. Update documentation if needed
+6. Create PR with description
+7. Wait for review
+
+## Code Style
+
+- Use type hints
+- Write docstrings
+- Keep functions <50 lines
+- Keep files <500 lines
+- Follow PEP 8
+
+## Testing
+
+- Write unit tests for new code
+- Maintain 80%+ coverage
+- Use pytest fixtures
+- Mock external services
+```
+
+### `CHANGELOG.md`
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Initial implementation
+
+## [0.1.0] - 2024-XX-XX
+
+### Added
+- Gmail OAuth integration
+- Email ingestion from mbox
+- LLM wrapper for Ollama
+- RAG pipeline with ChromaDB
+- Response generator with tone modes
+- Gradio dashboard
+- SQLite database layer
+- Push notifications
+- Email watcher service
+- Confidence scoring
+- Monitoring and logging
+- Security hardening
+```
 
 ---
 
 ## Tasks
 
-### 1.3.1 User Instructions for Gmail Takeout (1 hr)
-- [ ] Document how to export Gmail via Google Takeout
-- [ ] Include step-by-step with expected wait time (24-48 hrs)
+### 5.3.1 Write README.md (1.5 hrs)
+- [ ] Quick start guide
+- [ ] Installation instructions
+- [ ] Configuration guide
+- [ ] Usage examples
+- [ ] Feature overview
 
-### 1.3.2 Build Mbox Parser (4 hrs)
-- [ ] Parse .mbox file format
-- [ ] Handle large files (streaming if needed)
-- [ ] Extract all required fields
+### 5.3.2 Write ARCHITECTURE.md (1.5 hrs)
+- [ ] System overview diagram
+- [ ] Component descriptions
+- [ ] Data flow diagrams
+- [ ] Database schema
+- [ ] Configuration reference
 
-### 1.3.3 Detect Sent Emails (4 hrs)
-- [ ] Detect "Sent" folder
-- [ ] Match user's email address in From
-- [ ] Handle X-Gmail-Labels
+### 5.3.3 Write CONTRIBUTING.md (1 hr)
+- [ ] Development setup
+- [ ] Project structure
+- [ ] Branch naming
+- [ ] Commit conventions
+- [ ] PR process
+- [ ] Code style
 
-### 1.3.4 Clean Email Data (2 hrs)
-- [ ] Strip signatures
-- [ ] Remove quoted replies
-- [ ] Filter auto-generated emails
-- [ ] Handle HTML → text conversion
+### 5.3.4 API Documentation (1 hr)
+- [ ] Document all modules
+- [ ] Document all classes
+- [ ] Document all methods
+- [ ] Add usage examples
 
-### 1.3.5 Output CSV (1 hr)
-- [ ] Write to CSV with correct schema
-- [ ] Handle special characters (encoding)
-- [ ] Create data/ directory if needed
-
-### 1.3.6 Tests (2 hrs)
-- [ ] Unit tests for each function
-- [ ] Test with sample .mbox file
-- [ ] Verify CSV output schema
-
----
-
-## Dependencies
-
-| Dependency | Purpose |
-|------------|---------|
-| python-email | Standard library email parsing |
-| mailbox | Standard library .mbox handling |
-| html2text | Convert HTML to plain text |
-
----
-
-## Testing
-
-```bash
-# Basic usage
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --output data/training_emails.csv
-
-# With user email (better sent detection)
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --user-email your@email.com
-
-# Sent emails only
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --sent-only
-
-# Run tests
-pytest tests/test_ingest.py -v
-```
-
----
-
-## Google Takeout Instructions (to include in docs)
-
-1. Go to: https://takeout.google.com/
-2. Sign in with your Google account
-3. Click **"Create a new export"**
-4. Select **Gmail** (only)
-5. Click **All Mail** (include starred, important, etc.)
-6. Click **Next**
-7. Export format: **.mbox** (not .json)
-8. File frequency: **Once**
-9. Click **Create export**
-10. Wait 24-48 hours for Google to prepare your download
-11. Download and unzip
-12. Find the `.mbox` file in the extracted folder
-
----
-
-## Notes
-
-- Gmail Takeout produces one `.mbox` file per label/folder
-- Main files of interest: `All Mail.mbox`, `Sent.mbox`, `INBOX.mbox`
-- Large accounts: Takeout can produce GBs of data
-- Parser should handle malformed emails gracefully
+### 5.3.5 Demo Video (1 hr)
+- [ ] Record 2-3 minute demo
+- [ ] Show installation
+- [ ] Show dashboard
+- [ ] Show draft generation
+- [ ] Upload to YouTube
 
 ---
 
 ## Definition of Done
 
-1. `src/ingest.py` implements all functions in deliverable spec
-2. `python src/ingest.py --mbox <file>` produces valid CSV
-3. CSV has correct schema: thread_id, from, subject, body_text, sent_by_you, timestamp
-4. Auto-generated emails are filtered out
-5. Unit tests pass
-6. Google Takeout instructions documented
-7. Branch pushed to GitHub
-8. PR created
+1. `README.md` complete with install + usage
+2. `ARCHITECTURE.md` documents system design
+3. `CONTRIBUTING.md` for contributors
+4. `CHANGELOG.md` for version history
+5. API documentation for all modules
+6. Configuration guide in README
+7. Troubleshooting section in README
+8. Demo video recorded
+9. New developer can set up in <30 min
+10. Branch pushed to GitHub
+11. PR created
