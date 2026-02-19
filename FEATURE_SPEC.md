@@ -1,174 +1,173 @@
-# Feature Spec: Response Generator
+# Feature Spec: Gradio Dashboard
 
-**Phase:** 2.3  
-**Branch:** `feature/2.3-response-generator`  
-**Priority:** P0 (Blocking)  
-**Est. Time:** 18 hours
+**Phase:** 3.1  
+**Branch:** `feature/3.1-gradio-dashboard`  
+**Priority:** P0  
+**Est. Time:** 12 hours
 
 ---
 
 ## Objective
 
-Build the response generation system that uses the LLM + RAG pipeline to generate email drafts with context from past emails and specified tone modes.
+Build the Gradio web dashboard for reviewing and approving AI-generated email drafts.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `src/response_generator.py` implements ResponseGenerator class
-- [ ] `generate_reply(incoming_email, tone)` method works
-- [ ] Tone modes: casual, formal, concise, match_style
-- [ ] Integrates with LLM (from 2.1) and RAG (from 2.2)
-- [ ] Tests verify all tone modes
-- [ ] Tests verify RAG context inclusion
+- [ ] `src/dashboard.py` implements Gradio app
+- [ ] Shows pending drafts table with subject, sender, preview
+- [ ] Draft text editor for editing drafts
+- [ ] Approve / Edit / Delete buttons work
+- [ ] Tone selector dropdown
+- [ ] Real-time refresh every 30 seconds
+- [ ] Tests verify UI components exist
 - [ ] Unit tests pass
 
 ---
 
 ## Deliverable
 
-### `src/response_generator.py`
+### `src/dashboard.py`
 
 ```python
-"""Response generator using LLM + RAG for email drafting."""
+"""Gradio dashboard for email draft review."""
+import gradio as gr
 from typing import List, Dict, Optional
+import time
 
 
-class ResponseGenerator:
-    """Generate email responses using LLM and RAG context."""
-    
-    # Tone configurations
-    TONES = {
-        "casual": {
-            "system_prompt": "You are writing a casual, friendly email. Use contractions, be warm, keep it conversational.",
-            "max_length": 200,
-        },
-        "formal": {
-            "system_prompt": "You are writing a formal professional email. Use proper grammar, be polite, maintain a professional tone.",
-            "max_length": 300,
-        },
-        "concise": {
-            "system_prompt": "You are writing a brief, to-the-point email. Get straight to the answer, minimize fluff.",
-            "max_length": 100,
-        },
-        "match_style": {
-            "system_prompt": "You are writing an email that matches the user's personal writing style from their past emails.",
-            "max_length": 250,
-        },
-    }
+class Dashboard:
+    """Gradio dashboard for Jeeves email drafts."""
     
     def __init__(
         self,
-        llm=None,
-        rag=None,
-        default_tone: str = "match_style",
-        include_context: bool = True,
-        context_top_k: int = 5
+        db=None,
+        response_generator=None,
+        refresh_interval: int = 30
     ):
-        """Initialize response generator."""
+        """Initialize dashboard."""
+        self.db = db
+        self.response_generator = response_generator
+        self.refresh_interval = refresh_interval
+    
+    def get_pending_drafts(self) -> List[Dict]:
+        """Get pending drafts from database."""
+        return []
+    
+    def approve_draft(self, draft_id: int) -> str:
+        """Approve and send a draft."""
         pass
     
-    def generate_reply(
-        self,
-        incoming_email: Dict,
-        tone: str = None,
-        custom_prompt: str = None
-    ) -> str:
-        """Generate a reply to an incoming email."""
+    def delete_draft(self, draft_id: int) -> str:
+        """Delete a draft."""
         pass
     
-    def generate_with_context(
-        self,
-        incoming_email: Dict,
-        context_emails: List[Dict]
-    ) -> str:
-        """Generate response with explicit context emails."""
+    def edit_draft(self, draft_id: int, new_text: str) -> str:
+        """Edit a draft's text."""
         pass
     
-    def set_tone(self, tone: str):
-        """Set default tone for responses."""
+    def generate_draft_from_email(self, email_id: int, tone: str) -> str:
+        """Generate a draft for an email."""
         pass
     
-    def get_available_tones(self) -> List[str]:
-        """Get list of available tone modes."""
+    def build_interface(self) -> gr.Blocks:
+        """Build the Gradio interface."""
         pass
     
-    def _build_prompt(self, incoming_email: Dict, context: List[str] = None, tone: str = None, custom: str = None) -> tuple:
-        """Build prompt for LLM."""
-        pass
-    
-    def _get_style_from_past_emails(self, from_email: str) -> str:
-        """Analyze user's past emails to determine writing style."""
+    def run(self, share: bool = False, port: int = 7860):
+        """Run the dashboard."""
         pass
 
 
-# Convenience functions
+# Demo data for testing without DB
+DEMO_DRAFTS = [
+    {"id": 1, "subject": "Re: Project Update", "from": "bob@company.com", "preview": "update on the project...", "tone": "match_style", "generated_text": "Thanks for the update!", "created_at": "2024-01-15T10:30:00"},
+    {"id": 2, "subject": "Meeting Tomorrow", "from": "alice@startup.io", "preview": "Are we still meeting?", "tone": "formal", "generated_text": "Yes, I confirm our meeting.", "created_at": "2024-01-15T11:00:00"},
+]
 
-def generate_reply(incoming_email: Dict, tone: str = None, **kwargs) -> str:
-    """Quick function to generate a reply."""
-    gen = ResponseGenerator(**kwargs)
-    return gen.generate_reply(incoming_email, tone)
+
+def get_demo_drafts() -> List[Dict]:
+    """Get demo drafts for testing."""
+    return DEMO_DRAFTS.copy()
 ```
 
 ---
 
 ## Testing Requirements
 
-### Unit Tests (tests/test_response_generator.py)
+### Unit Tests (tests/test_dashboard.py)
 
 The tests must verify:
 
 1. **File & Import Tests**
-   - `test_file_exists` - src/response_generator.py exists
-   - `test_import` - ResponseGenerator can be imported
+   - `test_file_exists` - src/dashboard.py exists
+   - `test_import` - Dashboard can be imported
 
-2. **Method Tests**
-   - `test_class_has_required_methods` - generate_reply, generate_with_context, set_tone, get_available_tones
-   - `test_convenience_function_exists` - generate_reply() function exists
+2. **Class Tests**
+   - `test_class_has_required_methods` - get_pending_drafts, approve_draft, delete_draft, edit_draft, generate_draft_from_email, build_interface, run
+   - `test_dashboard_class_exists` - Dashboard class exists
 
-3. **Tone Tests**
-   - `test_tone_modes_defined` - All 4 tones exist: casual, formal, concise, match_style
-   - `test_tones_dict_structure` - Each tone has system_prompt and max_length
-   - `test_default_tone` - Default is 'match_style'
-   - `test_set_tone` - set_tone() changes default
-   - `test_get_available_tones` - Returns list of 4 tone names
+3. **Demo Data Tests**
+   - `test_demo_drafts_exists` - DEMO_DRAFTS constant exists
+   - `test_get_demo_drafts_function` - get_demo_drafts() function exists
+   - `test_demo_drafts_structure` - Each demo draft has required fields (id, subject, from, preview, tone, generated_text)
 
-4. **Integration Tests**
-   - `test_llm_integration` - LLM is called for generation
-   - `test_rag_integration` - RAG context is included
-   - `test_tone_affects_prompt` - Different tones produce different prompts
+4. **Gradio Integration Tests**
+   - `test_gradio_import` - Gradio can be imported
+   - `test_build_interface_returns_blocks` - build_interface returns gr.Blocks
 
-5. **Edge Case Tests**
-   - `test_empty_email_handling` - Missing email fields handled gracefully
+5. **Tone Options Tests**
+   - `test_tone_options_defined` - Standard tone options available
 
-6. **Dependency Tests**
-   - `test_requirements_have_dependencies` - Required packages in requirements.txt
+6. **Configuration Tests**
+   - `test_default_refresh_interval` - Default refresh is 30 seconds
+   - `test_default_port` - Default port is 7860
+
+---
+
+## UI Components
+
+The dashboard must have:
+
+1. **Draft Table** - DataFrame or table showing pending drafts
+2. **Draft Editor** - TextArea for viewing/editing draft content
+3. **Tone Dropdown** - Dropdown with options: casual, formal, concise, match_style
+4. **Action Buttons** - Approve, Edit/Save, Delete buttons
+5. **Refresh Toggle** - Enable/disable auto-refresh
+6. **Status Display** - Show status messages
 
 ---
 
 ## Tasks
 
-### 2.3.1 Build ResponseGenerator Class (8 hrs)
-- [ ] Implement __init__ with LLM/RAG integration
-- [ ] Define TONES dictionary with prompts
-- [ ] Implement generate_reply() with tone selection
-- [ ] Implement generate_with_context()
-- [ ] Implement set_tone() and get_available_tones()
+### 3.1.1 Scaffold Gradio App (2 hrs)
+- [ ] Set up basic Gradio Blocks interface
+- [ ] Configure theme and layout
+- [ ] Test basic rendering
 
-### 2.3.2 Prompt Building (4 hrs)
-- [ ] Implement _build_prompt() 
-- [ ] Handle tone injection
-- [ ] Handle context inclusion
-- [ ] Handle custom prompts
+### 3.1.2 Build Drafts Table (4 hrs)
+- [ ] Create data table component
+- [ ] Load drafts from DB (or demo data)
+- [ ] Add row selection
 
-### 2.3.3 Style Matching (4 hrs)
-- [ ] Implement _get_style_from_past_emails()
-- [ ] Query RAG for user's sent emails
-- [ ] Extract style characteristics
+### 3.1.3 Add Draft Editor (2 hrs)
+- [ ] TextArea for draft content
+- [ ] Pre-populate when draft selected
+- [ ] Handle edits
 
-### 2.3.4 Write Tests (2 hrs)
-- [ ] Write all tests per testing requirements
-- [ ] Run and fix failures
+### 3.1.4 Add Action Buttons (2 hrs)
+- [ ] Approve & Send button
+- [ ] Save Edit button
+- [ ] Delete button
+
+### 3.1.5 Add Tone Selector (1 hr)
+- [ ] Dropdown with 4 tone options
+- [ ] Connect to draft generation
+
+### 3.1.6 Add Auto-Refresh (1 hr)
+- [ ] Implement refresh mechanism
+- [ ] Add toggle to enable/disable
 
 ---
 
@@ -176,42 +175,46 @@ The tests must verify:
 
 | Dependency | Purpose |
 |------------|---------|
-| src.llm | LLM wrapper from 2.1 |
-| src.rag | RAG pipeline from 2.2 |
+| gradio>=4.0.0 | UI framework |
+| src.db | Database layer (3.2) |
+| src.response_generator | Generate drafts (2.3) |
 
 ---
 
-## Testing
+## Running the Dashboard
 
 ```bash
-# Run tests
-pytest tests/test_response_generator.py -v
+# Run with demo data
+python src/dashboard.py
 
-# Test generation
-python -c "
-from src.response_generator import ResponseGenerator
-email = {'subject': 'Meeting?', 'from': 'bob@example.com', 'body_text': 'Are we still meeting tomorrow?'}
-gen = ResponseGenerator()
-draft = gen.generate_reply(email, tone='formal')
-print(draft)
-"
+# Run on custom port
+python src/dashboard.py --port 8080
+
+# Run with public link
+python src/dashboard.py --share
+
+# Run tests
+pytest tests/test_dashboard.py -v
 ```
 
 ---
 
 ## Notes
 
-- Response generator depends on 2.1 (LLM) and 2.2 (RAG) being complete
-- Tone prompts can be customized in .env or config
-- max_length is a guideline, LLM may exceed slightly
+- Dashboard works with demo data if DB not ready
+- Can use `get_demo_drafts()` for testing without database
+- Default port 7860 is Gradio standard
 
 ---
 
 ## Definition of Done
 
-1. `src/response_generator.py` implements ResponseGenerator
-2. All 4 tone modes work
-3. RAG context is included in generation
-4. All unit tests pass (minimum 12 tests)
-5. Branch pushed to GitHub
-6. PR created
+1. `src/dashboard.py` implements working Gradio app
+2. Shows pending drafts in table
+3. Draft editor allows editing
+4. All 3 action buttons work (Approve, Edit, Delete)
+5. Tone selector has 4 options
+6. Auto-refresh works
+7. All unit tests pass (minimum 12 tests)
+8. Branch pushed to GitHub
+9. PR created
