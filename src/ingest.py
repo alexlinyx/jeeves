@@ -47,10 +47,12 @@ def extract_email_address(header_value: str) -> str:
     """Extract email address from From header."""
     if not header_value:
         return ''
-    match = re.search(r'<(.+?)>|^(.+?)$', header_value)
+    # Match <email@example.com> pattern first
+    match = re.search(r'<([^>]+)>', header_value)
     if match:
-        return match.group(1) or match.group(2) or ''
-    return header_value
+        return match.group(1).strip()
+    # Otherwise return whole thing (it's just an email)
+    return header_value.strip()
 
 
 def clean_body(body: str) -> str:
