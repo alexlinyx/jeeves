@@ -1,367 +1,441 @@
-# Feature Spec: Email Ingestion Pipeline
+# Feature Spec: Monitoring & Logging
 
-**Phase:** 1.3  
-**Branch:** `feature/1.3-email-ingestion`  
-**Priority:** P0 (Blocking)  
-**Est. Time:** 14 hours
+**Phase:** 4.3  
+**Branch:** `feature/4.3-monitoring-logging`  
+**Priority:** P2  
+**Est. Time:** 6 hours
 
 ---
 
 ## Objective
 
-Build the pipeline to ingest email history from Gmail, extract training data (sent emails), and save as CSV for downstream AI training.
+Implement structured logging and metrics collection to track system performance, draft quality, and operational health.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Gmail Takeout export instructions provided to user
-- [x] `src/ingest.py` can parse `.mbox` files
-- [x] Extracts sent emails (from "Sent" folder or by filtering `sent_by_you` field)
-- [x] Outputs `data/training_emails.csv` with schema:
-  - `thread_id`
-  - `from`
-  - `subject`
-  - `body_text`
-  - `sent_by_you` (boolean)
-  - `timestamp`
-- [x] Command `python src/ingest.py --mbox ~/Downloads/takeout.mbox` produces valid CSV
-- [x] Unit tests for parser pass
+- [ ] `src/logger.py` implements structured logging
+- [ ] `src/metrics.py` implements metrics collection
+- [ ] Uses `structlog` for JSON-formatted logs
+- [ ] Logs to `logs/jeeves.jsonl`
+- [ ] Tracks: drafts created, sent, edited, rejected
+- [ ] Tracks: processing times, error rates
+- [ ] Provides metrics endpoint for dashboard
+- [ ] Tests verify logging and metrics
+- [ ] Unit tests pass
 
 ---
 
 ## Deliverable
 
-### `src/ingest.py`
+### `src/logger.py`
 
 ```python
-"""Email ingestion from Gmail Takeout .mbox files."""
-import argparse
-import csv
+"""Structured logging for Jeeves."""
 import os
+import json
+import logging
 from datetime import datetime
-from email import policy
-from email.parser import BytesParser
-from mailbox import mbox
-from typing import List, Dict, Optional
-import re
+from pathlib import Path
+from typing import Any, Dict, Optional
+from dataclasses import dataclass, asdict
+from enum import Enum
 
 
-def parse_mbox(mbox_path: str, output_csv: str = "data/training_emails.csv") -> int:
-    """Parse .mbox file and extract email data.
+class LogLevel(Enum):
+    """Log levels."""
+    DEBUG = "debug"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+    CRITICAL = "critical"
+
+
+@dataclass
+class LogEntry:
+    """Structured log entry."""
+    timestamp: str
+    level: str
+    message: str
+    component: str
+    action: str
+    data: Dict[str, Any]
+    duration_ms: Optional[float] = None
+    error: Optional[str] = None
+    trace_id: Optional[str] = None
+
+
+class JeevesLogger:
+    """Structured logger for Jeeves operations."""
     
-    Args:
-        mbox_path: Path to the .mbox file
-        output_csv: Path to output CSV file
+    DEFAULT_LOG_DIR = "logs"
+    DEFAULT_LOG_FILE = "jeeves.jsonl"
+    
+    def __init__(
+        self,
+        log_dir: str = None,
+        log_file: str = None,
+        component: str = "jeeves",
+        level: LogLevel = LogLevel.INFO
+    ):
+        """Initialize logger.
         
-    Returns:
-        Number of emails processed
-    """
+        Args:
+            log_dir: Directory for log files
+            log_file: Log file name
+            component: Component name for all logs
+            level: Minimum log level
+        """
+        pass
+    
+    def info(self, message: str, action: str, data: Dict = None, **kwargs):
+        """Log info level."""
+        pass
+    
+    def warning(self, message: str, action: str, data: Dict = None, **kwargs):
+        """Log warning level."""
+        pass
+    
+    def error(self, message: str, action: str, error: Exception = None, data: Dict = None, **kwargs):
+        """Log error level."""
+        pass
+    
+    def debug(self, message: str, action: str, data: Dict = None, **kwargs):
+        """Log debug level."""
+        pass
+    
+    def log_draft_created(self, draft_id: int, email_id: int, tone: str, confidence: float):
+        """Log draft creation."""
+        pass
+    
+    def log_draft_sent(self, draft_id: int, subject: str, recipient: str):
+        """Log draft sent."""
+        pass
+    
+    def log_draft_edited(self, draft_id: int, edits_count: int):
+        """Log draft edited."""
+        pass
+    
+    def log_draft_rejected(self, draft_id: int, reason: str = None):
+        """Log draft rejected."""
+        pass
+    
+    def log_email_processed(self, email_id: str, processing_time_ms: float):
+        """Log email processing."""
+        pass
+    
+    def log_error(self, component: str, error: Exception, context: Dict = None):
+        """Log error with context."""
+        pass
+    
+    def _write(self, entry: LogEntry):
+        """Write log entry to file."""
+        pass
+
+
+# Global logger instance
+_logger: Optional[JeevesLogger] = None
+
+
+def get_logger(component: str = None) -> JeevesLogger:
+    """Get or create logger instance."""
     pass
 
 
-def extract_email_address(header_value: str) -> str:
-    """Extract email address from From header.
+def configure_logging(log_dir: str = None, level: LogLevel = LogLevel.INFO):
+    """Configure global logging."""
+    pass
+```
+
+### `src/metrics.py`
+
+```python
+"""Metrics collection for Jeeves."""
+import json
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from dataclasses import dataclass, field
+from collections import defaultdict
+from pathlib import Path
+import threading
+
+
+@dataclass
+class MetricPoint:
+    """Single metric data point."""
+    timestamp: str
+    value: float
+    tags: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class MetricSummary:
+    """Summary of metric over time period."""
+    name: str
+    count: int
+    sum: float
+    min: float
+    max: float
+    avg: float
+    period_seconds: int
+
+
+class MetricsCollector:
+    """Collect and aggregate metrics."""
     
-    Args:
-        header_value: Full From header (e.g., "John Doe <john@example.com>")
+    METRICS_FILE = "logs/metrics.jsonl"
+    
+    def __init__(self, persist: bool = True):
+        """Initialize metrics collector.
         
-    Returns:
-        Email address only
-    """
+        Args:
+            persist: Whether to persist metrics to file
+        """
+        pass
+    
+    def increment(self, name: str, value: float = 1.0, tags: Dict[str, str] = None):
+        """Increment a counter metric."""
+        pass
+    
+    def gauge(self, name: str, value: float, tags: Dict[str, str] = None):
+        """Set a gauge metric."""
+        pass
+    
+    def timing(self, name: str, duration_ms: float, tags: Dict[str, str] = None):
+        """Record a timing metric."""
+        pass
+    
+    def get_summary(self, name: str, period_seconds: int = 3600) -> MetricSummary:
+        """Get summary of metric over time period."""
+        pass
+    
+    def get_all_metrics(self) -> Dict[str, List[MetricPoint]]:
+        """Get all collected metrics."""
+        pass
+    
+    def get_dashboard_data(self) -> Dict:
+        """Get metrics formatted for dashboard display.
+        
+        Returns:
+            Dict with:
+            - drafts_created_total
+            - drafts_sent_total
+            - drafts_edited_total
+            - drafts_rejected_total
+            - avg_processing_time_ms
+            - avg_confidence_score
+            - error_rate
+            - uptime_seconds
+        """
+        pass
+    
+    def reset(self):
+        """Reset all metrics."""
+        pass
+    
+    def _persist(self, name: str, point: MetricPoint):
+        """Persist metric to file."""
+        pass
+
+
+# Convenience metric functions
+METRICS = None
+
+
+def get_metrics() -> MetricsCollector:
+    """Get global metrics collector."""
     pass
 
 
-def clean_body(body: str) -> str:
-    """Clean email body text.
-    
-    - Remove quoted replies (lines starting with >)
-    - Remove signatures (-- \n...)
-    - Strip whitespace
-    - Remove excessive newlines
-    
-    Args:
-        body: Raw email body
-        
-    Returns:
-        Cleaned body text
-    """
-    pass
-
-
-def is_sent_email(email_message, user_email: str) -> bool:
-    """Determine if email was sent by user.
-    
-    Checks:
-    - Is in Sent folder (folder name)
-    - From address matches user's email
-    - X-Gmail-Labels contains "Sent"
-    
-    Args:
-        email_message: email.message.Message object
-        user_email: User's email address
-        
-    Returns:
-        True if sent by user
-    """
-    pass
-
-
-def get_timestamp(email_message) -> Optional[str]:
-    """Extract timestamp from email.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        ISO format timestamp or None
-    """
-    pass
-
-
-def extract_thread_id(email_message) -> Optional[str]:
-    """Extract thread ID from email headers.
-    
-    Looks in:
-    - X-Gmail-Thread-Top
-    - X-Gmail-Thread-Index
-    - References header
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Thread ID or None
-    """
-    pass
-
-
-def extract_subject(email_message) -> str:
-    """Extract subject line, handling Re:, Fwd:, etc.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Cleaned subject line
-    """
-    pass
-
-
-def extract_body(email_message) -> str:
-    """Extract body text from email.
-    
-    Handles:
-    - Plain text
-    - HTML (strips tags)
-    - Multipart (prefers plain text)
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Body text
-    """
-    pass
-
-
-def filter_useful_email(body: str, subject: str) -> bool:
-    """Filter out auto-generated emails.
-    
-    Excludes:
-    - Auto-replies (auto-generated, auto-reply, out of office)
-    - Bounces (delivery failed, undelivered)
-    - Notifications (new followup, mention)
-    - Empty or very short emails
-    
-    Args:
-        body: Email body text
-        subject: Email subject
-        
-    Returns:
-        True if email is useful for training
-    """
-    # Auto-generated patterns
-    auto_patterns = [
-        r'auto-?generated',
-        r'auto-?reply',
-        r'out of office',
-        r'ooo',
-        r'delivery failed',
-        r'undelivered',
-        r'mailer-?daemon',
-        r'noreply',
-        r'no-?reply',
-        r'don\'t reply',
-        r'notification',
-    ]
-    
-    # Check subject and body
-    text = (subject + ' ' + body).lower()
-    for pattern in auto_patterns:
-        if re.search(pattern, text):
-            return False
-    
-    # Minimum length check
-    if len(body.strip()) < 50:
-        return False
-    
-    return True
-
-
-def main():
-    """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Ingest emails from Gmail Takeout .mbox file"
-    )
-    parser.add_argument(
-        "--mbox",
-        required=True,
-        help="Path to .mbox file from Google Takeout"
-    )
-    parser.add_argument(
-        "--output",
-        default="data/training_emails.csv",
-        help="Output CSV file path"
-    )
-    parser.add_argument(
-        "--user-email",
-        help="Your email address (to detect sent emails)"
-    )
-    parser.add_argument(
-        "--sent-only",
-        action="store_true",
-        help="Only extract sent emails (skip inbox)"
-    )
-    
-    args = parser.parse_args()
-    
-    count = parse_mbox(args.mbox, args.output)
-    print(f"Processed {count} emails -> {args.output}")
-
-
-if __name__ == "__main__":
-    main()
+# Metric names as constants
+class MetricName:
+    """Standard metric names."""
+    DRAFTS_CREATED = "drafts.created"
+    DRAFTS_SENT = "drafts.sent"
+    DRAFTS_EDITED = "drafts.edited"
+    DRAFTS_REJECTED = "drafts.rejected"
+    EMAILS_PROCESSED = "emails.processed"
+    PROCESSING_TIME_MS = "processing.time_ms"
+    CONFIDENCE_SCORE = "confidence.score"
+    ERRORS = "errors.total"
+    WATCHER_POLLS = "watcher.polls"
+    LLM_GENERATIONS = "llm.generations"
+    RAG_QUERIES = "rag.queries"
 ```
 
 ---
 
-## Output Format
+## Testing Requirements
 
-### `data/training_emails.csv`
+### Unit Tests (tests/test_logger.py)
 
-```csv
-thread_id,from,subject,body_text,sent_by_you,timestamp
-123abc,"John Doe <john@example.com>","Re: Project update","Hey team, just wanted to...","True","2024-01-15T10:30:00Z"
-456def,"Jane Smith <jane@company.com>","Meeting notes","Here are the notes from...","False","2024-01-15T09:15:00Z"
+```python
+class TestJeevesLogger:
+    """Test cases for JeevesLogger."""
+    
+    def test_file_exists(self):
+        """Test logger.py exists."""
+    
+    def test_import(self):
+        """Test JeevesLogger can be imported."""
+    
+    def test_log_entry_creation(self):
+        """Test LogEntry dataclass creation."""
+    
+    def test_info_logging(self):
+        """Test info level logging."""
+    
+    def test_error_logging(self):
+        """Test error level logging with exception."""
+    
+    def test_log_file_created(self):
+        """Test log file is created."""
+    
+    def test_json_format(self):
+        """Test logs are valid JSON."""
+    
+    def test_log_draft_created(self):
+        """Test log_draft_created convenience method."""
+    
+    def test_log_draft_sent(self):
+        """Test log_draft_sent convenience method."""
+    
+    def test_timestamp_format(self):
+        """Test timestamp is ISO 8601 format."""
+
+
+class TestMetricsCollector:
+    """Test cases for MetricsCollector."""
+    
+    def test_file_exists(self):
+        """Test metrics.py exists."""
+    
+    def test_import(self):
+        """Test MetricsCollector can be imported."""
+    
+    def test_increment(self):
+        """Test counter increment."""
+    
+    def test_gauge(self):
+        """Test gauge metric."""
+    
+    def test_timing(self):
+        """Test timing metric."""
+    
+    def test_get_summary(self):
+        """Test summary calculation."""
+    
+    def test_get_dashboard_data(self):
+        """Test dashboard data format."""
+    
+    def test_metric_persistence(self):
+        """Test metrics persist to file."""
 ```
-
-| Column | Type | Description |
-|--------|------|-------------|
-| thread_id | string | Gmail thread ID (or generated hash) |
-| from | string | Sender email (with name if available) |
-| subject | string | Email subject line |
-| body_text | string | Cleaned email body |
-| sent_by_you | boolean | True if user sent this email |
-| timestamp | ISO 8601 | When email was sent/received |
 
 ---
 
 ## Tasks
 
-### 1.3.1 User Instructions for Gmail Takeout (1 hr)
-- [ ] Document how to export Gmail via Google Takeout
-- [ ] Include step-by-step with expected wait time (24-48 hrs)
+### 4.3.1 Set Up Structured Logging (2 hrs)
+- [ ] Install structlog
+- [ ] Implement JeevesLogger class
+- [ ] Implement LogEntry dataclass
+- [ ] Add convenience methods
 
-### 1.3.2 Build Mbox Parser (4 hrs)
-- [ ] Parse .mbox file format
-- [ ] Handle large files (streaming if needed)
-- [ ] Extract all required fields
+### 4.3.2 Implement Metrics Collection (2 hrs)
+- [ ] Implement MetricsCollector class
+- [ ] Add counter, gauge, timing methods
+- [ ] Add summary calculations
+- [ ] Add persistence
 
-### 1.3.3 Detect Sent Emails (4 hrs)
-- [ ] Detect "Sent" folder
-- [ ] Match user's email address in From
-- [ ] Handle X-Gmail-Labels
+### 4.3.3 Add Dashboard Integration (1 hr)
+- [ ] Implement get_dashboard_data()
+- [ ] Add uptime tracking
+- [ ] Add error rate calculation
 
-### 1.3.4 Clean Email Data (2 hrs)
-- [ ] Strip signatures
-- [ ] Remove quoted replies
-- [ ] Filter auto-generated emails
-- [ ] Handle HTML → text conversion
+### 4.3.4 Write Tests (1 hr)
+- [ ] Write logger tests
+- [ ] Write metrics tests
+- [ ] Test file persistence
 
-### 1.3.5 Output CSV (1 hr)
-- [ ] Write to CSV with correct schema
-- [ ] Handle special characters (encoding)
-- [ ] Create data/ directory if needed
+---
 
-### 1.3.6 Tests (2 hrs)
-- [ ] Unit tests for each function
-- [ ] Test with sample .mbox file
-- [ ] Verify CSV output schema
+## Log Format
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "level": "info",
+  "message": "Draft created",
+  "component": "response_generator",
+  "action": "draft_created",
+  "data": {
+    "draft_id": 123,
+    "email_id": 456,
+    "tone": "formal",
+    "confidence": 0.85
+  },
+  "duration_ms": 1250.5,
+  "trace_id": "abc-123-def"
+}
+```
+
+---
+
+## Metrics Format
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "name": "drafts.created",
+  "value": 1.0,
+  "tags": {
+    "tone": "formal",
+    "confidence_bucket": "high"
+  }
+}
+```
+
+---
+
+## Dashboard Metrics
+
+| Metric | Description | Type |
+|--------|-------------|------|
+| `drafts.created` | Total drafts created | Counter |
+| `drafts.sent` | Total drafts sent | Counter |
+| `drafts.edited` | Total drafts edited | Counter |
+| `drafts.rejected` | Total drafts rejected | Counter |
+| `processing.time_ms` | Email processing time | Timing |
+| `confidence.score` | Draft confidence scores | Gauge |
+| `errors.total` | Total errors | Counter |
 
 ---
 
 ## Dependencies
 
-| Dependency | Purpose |
-|------------|---------|
-| python-email | Standard library email parsing |
-| mailbox | Standard library .mbox handling |
-| html2text | Convert HTML to plain text |
-
----
-
-## Testing
-
 ```bash
-# Basic usage
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --output data/training_emails.csv
-
-# With user email (better sent detection)
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --user-email your@email.com
-
-# Sent emails only
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --sent-only
-
-# Run tests
-pytest tests/test_ingest.py -v
+pip install structlog
 ```
 
 ---
 
-## Google Takeout Instructions (to include in docs)
+## Running Tests
 
-1. Go to: https://takeout.google.com/
-2. Sign in with your Google account
-3. Click **"Create a new export"**
-4. Select **Gmail** (only)
-5. Click **All Mail** (include starred, important, etc.)
-6. Click **Next**
-7. Export format: **.mbox** (not .json)
-8. File frequency: **Once**
-9. Click **Create export**
-10. Wait 24-48 hours for Google to prepare your download
-11. Download and unzip
-12. Find the `.mbox` file in the extracted folder
-
----
-
-## Notes
-
-- Gmail Takeout produces one `.mbox` file per label/folder
-- Main files of interest: `All Mail.mbox`, `Sent.mbox`, `INBOX.mbox`
-- Large accounts: Takeout can produce GBs of data
-- Parser should handle malformed emails gracefully
+```bash
+pytest tests/test_logger.py tests/test_metrics.py -v
+```
 
 ---
 
 ## Definition of Done
 
-1. `src/ingest.py` implements all functions in deliverable spec
-2. `python src/ingest.py --mbox <file>` produces valid CSV
-3. CSV has correct schema: thread_id, from, subject, body_text, sent_by_you, timestamp
-4. Auto-generated emails are filtered out
-5. Unit tests pass
-6. Google Takeout instructions documented
+1. `src/logger.py` implements structured logging
+2. `src/metrics.py` implements metrics collection
+3. Logs written to `logs/jeeves.jsonl`
+4. Metrics persisted to `logs/metrics.jsonl`
+5. Convenience methods for common operations
+6. All unit tests pass
 7. Branch pushed to GitHub
 8. PR created
