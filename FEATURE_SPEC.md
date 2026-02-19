@@ -1,384 +1,422 @@
-# Feature Spec: Confidence Scoring & Auto-Send
+# Feature Spec: Monitoring & Logging
 
-**Phase:** 4.2  
-**Branch:** `feature/4.2-confidence-scoring`  
-**Priority:** P1  
+**Phase:** 4.3  
+**Branch:** `feature/4.3-monitoring-logging`  
+**Priority:** P2  
 **Est. Time:** 6 hours
 
 ---
 
 ## Objective
 
-Implement confidence scoring system to evaluate draft quality and enable automatic sending for high-confidence, low-risk emails.
+Implement structured logging and metrics collection to track system performance, draft quality, and operational health.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `src/confidence.py` implements confidence scoring
-- [ ] Score range: 0.0-1.0 (float)
-- [ ] Considers: sender familiarity, email complexity, response length
-- [ ] Safety rules: never auto-send financial, legal, sensitive topics
-- [ ] Configurable thresholds (default: auto-send >= 0.9)
-- [ ] Logs all scoring decisions with reasoning
-- [ ] Tests verify scoring logic and safety rules
+- [ ] `src/logger.py` implements structured logging
+- [ ] `src/metrics.py` implements metrics collection
+- [ ] Uses `structlog` for JSON-formatted logs
+- [ ] Logs to `logs/jeeves.jsonl`
+- [ ] Tracks: drafts created, sent, edited, rejected
+- [ ] Tracks: processing times, error rates
+- [ ] Provides metrics endpoint for dashboard
+- [ ] Tests verify logging and metrics
 - [ ] Unit tests pass
 
 ---
 
 ## Deliverable
 
-### `src/confidence.py`
+### `src/logger.py`
 
 ```python
-"""Confidence scoring for draft quality and auto-send decisions."""
-import re
-from typing import Dict, Optional, List, Tuple
-from dataclasses import dataclass
+"""Structured logging for Jeeves."""
+import os
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+from dataclasses import dataclass, asdict
 from enum import Enum
 
 
-class RiskLevel(Enum):
-    """Risk levels for email content."""
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+class LogLevel(Enum):
+    """Log levels."""
+    DEBUG = "debug"
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
     CRITICAL = "critical"
 
 
 @dataclass
-class ScoreResult:
-    """Result of confidence scoring."""
-    score: float
-    risk_level: RiskLevel
-    factors: Dict[str, float]
-    reasoning: List[str]
-    auto_send: bool
+class LogEntry:
+    """Structured log entry."""
+    timestamp: str
+    level: str
+    message: str
+    component: str
+    action: str
+    data: Dict[str, Any]
+    duration_ms: Optional[float] = None
+    error: Optional[str] = None
+    trace_id: Optional[str] = None
 
 
-class ConfidenceScorer:
-    """Score draft quality and determine auto-send eligibility."""
+class JeevesLogger:
+    """Structured logger for Jeeves operations."""
     
-    # Default thresholds
-    AUTO_SEND_THRESHOLD = 0.9
-    MANUAL_REVIEW_THRESHOLD = 0.5
-    
-    # Factor weights
-    FACTOR_WEIGHTS = {
-        'sender_familiarity': 0.25,
-        'response_length': 0.15,
-        'tone_match': 0.15,
-        'context_relevance': 0.20,
-        'content_safety': 0.25
-    }
+    DEFAULT_LOG_DIR = "logs"
+    DEFAULT_LOG_FILE = "jeeves.jsonl"
     
     def __init__(
         self,
-        auto_send_threshold: float = None,
-        rag_pipeline=None,
-        db=None
+        log_dir: str = None,
+        log_file: str = None,
+        component: str = "jeeves",
+        level: LogLevel = LogLevel.INFO
     ):
-        """Initialize confidence scorer.
+        """Initialize logger.
         
         Args:
-            auto_send_threshold: Minimum score for auto-send (default: 0.9)
-            rag_pipeline: RAGPipeline for context matching
-            db: Database for sender history
-        """
-        self.auto_send_threshold = auto_send_threshold or self.AUTO_SEND_THRESHOLD
-        self.rag_pipeline = rag_pipeline
-        self.db = db
-    
-    def score(self, incoming_email: Dict, draft: Dict) -> ScoreResult:
-        """Calculate confidence score for a draft.
-        
-        Args:
-            incoming_email: Original email dict
-            draft: Generated draft dict
-            
-        Returns:
-            ScoreResult with score, risk level, factors, and reasoning
+            log_dir: Directory for log files
+            log_file: Log file name
+            component: Component name for all logs
+            level: Minimum log level
         """
         pass
     
-    def should_auto_send(self, score: float, risk_level: RiskLevel) -> bool:
-        """Determine if draft should be auto-sent.
-        
-        Args:
-            score: Confidence score (0.0-1.0)
-            risk_level: Risk level of content
-            
-        Returns:
-            True if should auto-send
-        """
+    def info(self, message: str, action: str, data: Dict = None, **kwargs):
+        """Log info level."""
         pass
     
-    def _score_sender_familiarity(self, email: Dict) -> Tuple[float, str]:
-        """Score based on sender familiarity.
-        
-        Higher score for known senders we've emailed before.
-        """
+    def warning(self, message: str, action: str, data: Dict = None, **kwargs):
+        """Log warning level."""
         pass
     
-    def _score_response_length(self, draft: Dict) -> Tuple[float, str]:
-        """Score based on response length appropriateness.
-        
-        Penalize too short or too long responses.
-        """
+    def error(self, message: str, action: str, error: Exception = None, data: Dict = None, **kwargs):
+        """Log error level."""
         pass
     
-    def _score_tone_match(self, incoming_email: Dict, draft: Dict) -> Tuple[float, str]:
-        """Score based on tone matching.
-        
-        Check if draft tone matches incoming email tone.
-        """
+    def debug(self, message: str, action: str, data: Dict = None, **kwargs):
+        """Log debug level."""
         pass
     
-    def _score_context_relevance(self, incoming_email: Dict, draft: Dict) -> Tuple[float, str]:
-        """Score based on context relevance from RAG.
-        
-        Higher score when draft references relevant past context.
-        """
+    def log_draft_created(self, draft_id: int, email_id: int, tone: str, confidence: float):
+        """Log draft creation."""
         pass
     
-    def _score_content_safety(self, draft: Dict) -> Tuple[float, RiskLevel, str]:
-        """Score based on content safety analysis.
-        
-        Returns risk level and score.
-        """
+    def log_draft_sent(self, draft_id: int, subject: str, recipient: str):
+        """Log draft sent."""
         pass
     
-    def get_risk_level(self, text: str) -> RiskLevel:
-        """Analyze text for risk level.
-        
-        Checks for:
-        - Financial keywords (bank, transfer, payment, wire)
-        - Legal keywords (contract, sue, legal, attorney)
-        - Sensitive topics (password, ssn, medical, health)
-        - Urgent language (immediately, urgent, asap, emergency)
-        """
+    def log_draft_edited(self, draft_id: int, edits_count: int):
+        """Log draft edited."""
+        pass
+    
+    def log_draft_rejected(self, draft_id: int, reason: str = None):
+        """Log draft rejected."""
+        pass
+    
+    def log_email_processed(self, email_id: str, processing_time_ms: float):
+        """Log email processing."""
+        pass
+    
+    def log_error(self, component: str, error: Exception, context: Dict = None):
+        """Log error with context."""
+        pass
+    
+    def _write(self, entry: LogEntry):
+        """Write log entry to file."""
         pass
 
 
-# Safety patterns
-FINANCIAL_PATTERNS = [
-    r'\bbank\s*(account|transfer)\b',
-    r'\bwire\s*transfer\b',
-    r'\bpayment\b',
-    r'\bcredit\s*card\b',
-    r'\bssn\b',
-    r'\bsocial\s*security\b',
-    r'\bwire\s*money\b',
-    r'\bsend\s*money\b',
-    r'\bbitcoin\b',
-    r'\bcrypto\b',
-]
-
-LEGAL_PATTERNS = [
-    r'\bcontract\b',
-    r'\blawsuit\b',
-    r'\bsue\b',
-    r'\battorney\b',
-    r'\blawyer\b',
-    r'\blegal\s*action\b',
-    r'\bn ? ?d\s*a\b',  # NDA variations
-    r'\bsettlement\b',
-    r'\bliability\b',
-]
-
-SENSITIVE_PATTERNS = [
-    r'\bpassword\b',
-    r'\bpasscode\b',
-    r'\bpin\b',
-    r'\bsecret\b',
-    r'\bconfidential\b',
-    r'\bmedical\b',
-    r'\bhealth\b',
-    r'\bdiagnosis\b',
-    r'\bpatient\b',
-]
-
-URGENT_PATTERNS = [
-    r'\bimmediately\b',
-    r'\burgent\b',
-    r'\basap\b',
-    r'\bemergency\b',
-    r'\bright\s*now\b',
-    r'\bdeadline\b',
-    r'\btime\s*sensitive\b',
-]
+# Global logger instance
+_logger: Optional[JeevesLogger] = None
 
 
-def analyze_content_risk(text: str) -> Dict[str, List[str]]:
-    """Analyze text for risk patterns.
-    
-    Args:
-        text: Text to analyze
-        
-    Returns:
-        Dict with 'financial', 'legal', 'sensitive', 'urgent' lists of matches
-    """
+def get_logger(component: str = None) -> JeevesLogger:
+    """Get or create logger instance."""
     pass
 
 
-def get_auto_send_eligibility(score: float, risk_level: RiskLevel) -> Tuple[bool, str]:
-    """Determine if draft is eligible for auto-send.
-    
-    Args:
-        score: Confidence score
-        risk_level: Content risk level
-        
-    Returns:
-        Tuple of (eligible, reason)
-    """
+def configure_logging(log_dir: str = None, level: LogLevel = LogLevel.INFO):
+    """Configure global logging."""
     pass
+```
+
+### `src/metrics.py`
+
+```python
+"""Metrics collection for Jeeves."""
+import json
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from dataclasses import dataclass, field
+from collections import defaultdict
+from pathlib import Path
+import threading
+
+
+@dataclass
+class MetricPoint:
+    """Single metric data point."""
+    timestamp: str
+    value: float
+    tags: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class MetricSummary:
+    """Summary of metric over time period."""
+    name: str
+    count: int
+    sum: float
+    min: float
+    max: float
+    avg: float
+    period_seconds: int
+
+
+class MetricsCollector:
+    """Collect and aggregate metrics."""
+    
+    METRICS_FILE = "logs/metrics.jsonl"
+    
+    def __init__(self, persist: bool = True):
+        """Initialize metrics collector.
+        
+        Args:
+            persist: Whether to persist metrics to file
+        """
+        pass
+    
+    def increment(self, name: str, value: float = 1.0, tags: Dict[str, str] = None):
+        """Increment a counter metric."""
+        pass
+    
+    def gauge(self, name: str, value: float, tags: Dict[str, str] = None):
+        """Set a gauge metric."""
+        pass
+    
+    def timing(self, name: str, duration_ms: float, tags: Dict[str, str] = None):
+        """Record a timing metric."""
+        pass
+    
+    def get_summary(self, name: str, period_seconds: int = 3600) -> MetricSummary:
+        """Get summary of metric over time period."""
+        pass
+    
+    def get_all_metrics(self) -> Dict[str, List[MetricPoint]]:
+        """Get all collected metrics."""
+        pass
+    
+    def get_dashboard_data(self) -> Dict:
+        """Get metrics formatted for dashboard display.
+        
+        Returns:
+            Dict with:
+            - drafts_created_total
+            - drafts_sent_total
+            - drafts_edited_total
+            - drafts_rejected_total
+            - avg_processing_time_ms
+            - avg_confidence_score
+            - error_rate
+            - uptime_seconds
+        """
+        pass
+    
+    def reset(self):
+        """Reset all metrics."""
+        pass
+    
+    def _persist(self, name: str, point: MetricPoint):
+        """Persist metric to file."""
+        pass
+
+
+# Convenience metric functions
+METRICS = None
+
+
+def get_metrics() -> MetricsCollector:
+    """Get global metrics collector."""
+    pass
+
+
+# Metric names as constants
+class MetricName:
+    """Standard metric names."""
+    DRAFTS_CREATED = "drafts.created"
+    DRAFTS_SENT = "drafts.sent"
+    DRAFTS_EDITED = "drafts.edited"
+    DRAFTS_REJECTED = "drafts.rejected"
+    EMAILS_PROCESSED = "emails.processed"
+    PROCESSING_TIME_MS = "processing.time_ms"
+    CONFIDENCE_SCORE = "confidence.score"
+    ERRORS = "errors.total"
+    WATCHER_POLLS = "watcher.polls"
+    LLM_GENERATIONS = "llm.generations"
+    RAG_QUERIES = "rag.queries"
 ```
 
 ---
 
 ## Testing Requirements
 
-### Unit Tests (tests/test_confidence.py)
+### Unit Tests (tests/test_logger.py)
 
 ```python
-class TestConfidenceScorer:
-    """Test cases for ConfidenceScorer."""
+class TestJeevesLogger:
+    """Test cases for JeevesLogger."""
     
     def test_file_exists(self):
-        """Test confidence.py exists."""
+        """Test logger.py exists."""
     
     def test_import(self):
-        """Test ConfidenceScorer can be imported."""
+        """Test JeevesLogger can be imported."""
     
-    def test_class_has_required_methods(self):
-        """Test all required methods exist:
-        - score, should_auto_send, get_risk_level
-        """
+    def test_log_entry_creation(self):
+        """Test LogEntry dataclass creation."""
     
-    def test_default_auto_send_threshold(self):
-        """Test default threshold is 0.9."""
+    def test_info_logging(self):
+        """Test info level logging."""
     
-    def test_score_returns_score_result(self):
-        """Test score() returns ScoreResult dataclass."""
+    def test_error_logging(self):
+        """Test error level logging with exception."""
     
-    def test_score_range(self):
-        """Test score is always between 0.0 and 1.0."""
+    def test_log_file_created(self):
+        """Test log file is created."""
     
-    def test_auto_send_high_score(self):
-        """Test auto-send True for high score + low risk."""
+    def test_json_format(self):
+        """Test logs are valid JSON."""
     
-    def test_no_auto_send_medium_score(self):
-        """Test auto-send False for medium score."""
+    def test_log_draft_created(self):
+        """Test log_draft_created convenience method."""
     
-    def test_no_auto_send_high_risk(self):
-        """Test auto-send False for any critical risk."""
+    def test_log_draft_sent(self):
+        """Test log_draft_sent convenience method."""
     
-    def test_financial_detection(self):
-        """Test financial patterns detected."""
-    
-    def test_legal_detection(self):
-        """Test legal patterns detected."""
-    
-    def test_sensitive_detection(self):
-        """Test sensitive patterns detected."""
-    
-    def test_urgent_detection(self):
-        """Test urgent patterns detected."""
-    
-    def test_score_result_has_reasoning(self):
-        """Test ScoreResult includes reasoning list."""
+    def test_timestamp_format(self):
+        """Test timestamp is ISO 8601 format."""
 
 
-class TestRiskLevel:
-    """Test RiskLevel enum."""
+class TestMetricsCollector:
+    """Test cases for MetricsCollector."""
     
-    def test_risk_levels_exist(self):
-        """Test all risk levels defined: LOW, MEDIUM, HIGH, CRITICAL."""
-
-
-class TestSafetyPatterns:
-    """Test safety pattern detection."""
+    def test_file_exists(self):
+        """Test metrics.py exists."""
     
-    def test_financial_patterns_defined(self):
-        """Test FINANCIAL_PATTERNS list exists."""
+    def test_import(self):
+        """Test MetricsCollector can be imported."""
     
-    def test_legal_patterns_defined(self):
-        """Test LEGAL_PATTERNS list exists."""
+    def test_increment(self):
+        """Test counter increment."""
     
-    def test_sensitive_patterns_defined(self):
-        """Test SENSITIVE_PATTERNS list exists."""
+    def test_gauge(self):
+        """Test gauge metric."""
     
-    def test_urgent_patterns_defined(self):
-        """Test URGENT_PATTERNS list exists."""
+    def test_timing(self):
+        """Test timing metric."""
+    
+    def test_get_summary(self):
+        """Test summary calculation."""
+    
+    def test_get_dashboard_data(self):
+        """Test dashboard data format."""
+    
+    def test_metric_persistence(self):
+        """Test metrics persist to file."""
 ```
 
 ---
 
 ## Tasks
 
-### 4.2.1 Define Scoring Factors (1.5 hrs)
-- [ ] Define factor weights
-- [ ] Define ScoreResult dataclass
-- [ ] Define RiskLevel enum
+### 4.3.1 Set Up Structured Logging (2 hrs)
+- [ ] Install structlog
+- [ ] Implement JeevesLogger class
+- [ ] Implement LogEntry dataclass
+- [ ] Add convenience methods
 
-### 4.2.2 Implement Scoring Logic (2 hrs)
-- [ ] Implement score() method
-- [ ] Implement factor scoring methods
-- [ ] Combine factors with weights
+### 4.3.2 Implement Metrics Collection (2 hrs)
+- [ ] Implement MetricsCollector class
+- [ ] Add counter, gauge, timing methods
+- [ ] Add summary calculations
+- [ ] Add persistence
 
-### 4.2.3 Implement Safety Rules (1.5 hrs)
-- [ ] Define pattern lists
-- [ ] Implement get_risk_level()
-- [ ] Implement auto-send eligibility
+### 4.3.3 Add Dashboard Integration (1 hr)
+- [ ] Implement get_dashboard_data()
+- [ ] Add uptime tracking
+- [ ] Add error rate calculation
 
-### 4.2.4 Write Tests (1 hr)
-- [ ] Write unit tests
-- [ ] Test edge cases
-- [ ] Test safety rules
+### 4.3.4 Write Tests (1 hr)
+- [ ] Write logger tests
+- [ ] Write metrics tests
+- [ ] Test file persistence
 
 ---
 
-## Scoring Algorithm
+## Log Format
 
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "level": "info",
+  "message": "Draft created",
+  "component": "response_generator",
+  "action": "draft_created",
+  "data": {
+    "draft_id": 123,
+    "email_id": 456,
+    "tone": "formal",
+    "confidence": 0.85
+  },
+  "duration_ms": 1250.5,
+  "trace_id": "abc-123-def"
+}
 ```
-Total Score = Σ (Factor Score × Factor Weight)
 
-Factors:
-├── Sender Familiarity (25%)
-│   └── Higher if we've exchanged emails with sender before
-├── Response Length (15%)
-│   └── Optimal range: 50-300 characters
-├── Tone Match (15%)
-│   └── Higher if draft tone matches incoming email
-├── Context Relevance (20%)
-│   └── Higher when RAG finds relevant context
-└── Content Safety (25%)
-    └── Lower if risk patterns detected
+---
 
-Auto-Send Decision:
-├── Score >= 0.9 AND RiskLevel == LOW → AUTO-SEND
-├── Score >= 0.5 AND RiskLevel != CRITICAL → QUEUE FOR REVIEW
-└── Score < 0.5 OR RiskLevel == CRITICAL → FLAG FOR MANUAL REVIEW
+## Metrics Format
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "name": "drafts.created",
+  "value": 1.0,
+  "tags": {
+    "tone": "formal",
+    "confidence_bucket": "high"
+  }
+}
 ```
+
+---
+
+## Dashboard Metrics
+
+| Metric | Description | Type |
+|--------|-------------|------|
+| `drafts.created` | Total drafts created | Counter |
+| `drafts.sent` | Total drafts sent | Counter |
+| `drafts.edited` | Total drafts edited | Counter |
+| `drafts.rejected` | Total drafts rejected | Counter |
+| `processing.time_ms` | Email processing time | Timing |
+| `confidence.score` | Draft confidence scores | Gauge |
+| `errors.total` | Total errors | Counter |
 
 ---
 
 ## Dependencies
 
-| Dependency | Status | Notes |
-|------------|--------|-------|
-| src.rag | ✅ Done | For context relevance scoring |
-| src.db | 🔲 3.2 | For sender familiarity |
-
----
-
-## Configuration
-
 ```bash
-# Environment variables
-AUTO_SEND_THRESHOLD=0.9     # Minimum score for auto-send
-CONFIDENCE_MIN_LENGTH=50    # Minimum response length
-CONFIDENCE_MAX_LENGTH=500   # Maximum response length
+pip install structlog
 ```
 
 ---
@@ -386,25 +424,18 @@ CONFIDENCE_MAX_LENGTH=500   # Maximum response length
 ## Running Tests
 
 ```bash
-pytest tests/test_confidence.py -v
-
-# Test scoring manually
-python -c "
-from src.confidence import ConfidenceScorer
-scorer = ConfidenceScorer()
-result = scorer.score({'from': 'test@example.com'}, {'text': 'Thanks!'})
-print(f'Score: {result.score}, Auto-send: {result.auto_send}')
-"
+pytest tests/test_logger.py tests/test_metrics.py -v
 ```
 
 ---
 
 ## Definition of Done
 
-1. `src/confidence.py` implements ConfidenceScorer
-2. Score range 0.0-1.0
-3. Five scoring factors implemented
-4. Safety rules prevent auto-send for risky content
-5. All unit tests pass (minimum 15 tests)
-6. Branch pushed to GitHub
-7. PR created (not merged until dependencies ready)
+1. `src/logger.py` implements structured logging
+2. `src/metrics.py` implements metrics collection
+3. Logs written to `logs/jeeves.jsonl`
+4. Metrics persisted to `logs/metrics.jsonl`
+5. Convenience methods for common operations
+6. All unit tests pass
+7. Branch pushed to GitHub
+8. PR created
