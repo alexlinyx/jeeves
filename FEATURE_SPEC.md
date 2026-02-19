@@ -1,367 +1,410 @@
-# Feature Spec: Email Ingestion Pipeline
+# Feature Spec: Confidence Scoring & Auto-Send
 
-**Phase:** 1.3  
-**Branch:** `feature/1.3-email-ingestion`  
-**Priority:** P0 (Blocking)  
-**Est. Time:** 14 hours
+**Phase:** 4.2  
+**Branch:** `feature/4.2-confidence-scoring`  
+**Priority:** P1  
+**Est. Time:** 6 hours
 
 ---
 
 ## Objective
 
-Build the pipeline to ingest email history from Gmail, extract training data (sent emails), and save as CSV for downstream AI training.
+Implement confidence scoring system to evaluate draft quality and enable automatic sending for high-confidence, low-risk emails.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Gmail Takeout export instructions provided to user
-- [x] `src/ingest.py` can parse `.mbox` files
-- [x] Extracts sent emails (from "Sent" folder or by filtering `sent_by_you` field)
-- [x] Outputs `data/training_emails.csv` with schema:
-  - `thread_id`
-  - `from`
-  - `subject`
-  - `body_text`
-  - `sent_by_you` (boolean)
-  - `timestamp`
-- [x] Command `python src/ingest.py --mbox ~/Downloads/takeout.mbox` produces valid CSV
-- [x] Unit tests for parser pass
+- [ ] `src/confidence.py` implements confidence scoring
+- [ ] Score range: 0.0-1.0 (float)
+- [ ] Considers: sender familiarity, email complexity, response length
+- [ ] Safety rules: never auto-send financial, legal, sensitive topics
+- [ ] Configurable thresholds (default: auto-send >= 0.9)
+- [ ] Logs all scoring decisions with reasoning
+- [ ] Tests verify scoring logic and safety rules
+- [ ] Unit tests pass
 
 ---
 
 ## Deliverable
 
-### `src/ingest.py`
+### `src/confidence.py`
 
 ```python
-"""Email ingestion from Gmail Takeout .mbox files."""
-import argparse
-import csv
-import os
-from datetime import datetime
-from email import policy
-from email.parser import BytesParser
-from mailbox import mbox
-from typing import List, Dict, Optional
+"""Confidence scoring for draft quality and auto-send decisions."""
 import re
+from typing import Dict, Optional, List, Tuple
+from dataclasses import dataclass
+from enum import Enum
 
 
-def parse_mbox(mbox_path: str, output_csv: str = "data/training_emails.csv") -> int:
-    """Parse .mbox file and extract email data.
+class RiskLevel(Enum):
+    """Risk levels for email content."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+@dataclass
+class ScoreResult:
+    """Result of confidence scoring."""
+    score: float
+    risk_level: RiskLevel
+    factors: Dict[str, float]
+    reasoning: List[str]
+    auto_send: bool
+
+
+class ConfidenceScorer:
+    """Score draft quality and determine auto-send eligibility."""
+    
+    # Default thresholds
+    AUTO_SEND_THRESHOLD = 0.9
+    MANUAL_REVIEW_THRESHOLD = 0.5
+    
+    # Factor weights
+    FACTOR_WEIGHTS = {
+        'sender_familiarity': 0.25,
+        'response_length': 0.15,
+        'tone_match': 0.15,
+        'context_relevance': 0.20,
+        'content_safety': 0.25
+    }
+    
+    def __init__(
+        self,
+        auto_send_threshold: float = None,
+        rag_pipeline=None,
+        db=None
+    ):
+        """Initialize confidence scorer.
+        
+        Args:
+            auto_send_threshold: Minimum score for auto-send (default: 0.9)
+            rag_pipeline: RAGPipeline for context matching
+            db: Database for sender history
+        """
+        self.auto_send_threshold = auto_send_threshold or self.AUTO_SEND_THRESHOLD
+        self.rag_pipeline = rag_pipeline
+        self.db = db
+    
+    def score(self, incoming_email: Dict, draft: Dict) -> ScoreResult:
+        """Calculate confidence score for a draft.
+        
+        Args:
+            incoming_email: Original email dict
+            draft: Generated draft dict
+            
+        Returns:
+            ScoreResult with score, risk level, factors, and reasoning
+        """
+        pass
+    
+    def should_auto_send(self, score: float, risk_level: RiskLevel) -> bool:
+        """Determine if draft should be auto-sent.
+        
+        Args:
+            score: Confidence score (0.0-1.0)
+            risk_level: Risk level of content
+            
+        Returns:
+            True if should auto-send
+        """
+        pass
+    
+    def _score_sender_familiarity(self, email: Dict) -> Tuple[float, str]:
+        """Score based on sender familiarity.
+        
+        Higher score for known senders we've emailed before.
+        """
+        pass
+    
+    def _score_response_length(self, draft: Dict) -> Tuple[float, str]:
+        """Score based on response length appropriateness.
+        
+        Penalize too short or too long responses.
+        """
+        pass
+    
+    def _score_tone_match(self, incoming_email: Dict, draft: Dict) -> Tuple[float, str]:
+        """Score based on tone matching.
+        
+        Check if draft tone matches incoming email tone.
+        """
+        pass
+    
+    def _score_context_relevance(self, incoming_email: Dict, draft: Dict) -> Tuple[float, str]:
+        """Score based on context relevance from RAG.
+        
+        Higher score when draft references relevant past context.
+        """
+        pass
+    
+    def _score_content_safety(self, draft: Dict) -> Tuple[float, RiskLevel, str]:
+        """Score based on content safety analysis.
+        
+        Returns risk level and score.
+        """
+        pass
+    
+    def get_risk_level(self, text: str) -> RiskLevel:
+        """Analyze text for risk level.
+        
+        Checks for:
+        - Financial keywords (bank, transfer, payment, wire)
+        - Legal keywords (contract, sue, legal, attorney)
+        - Sensitive topics (password, ssn, medical, health)
+        - Urgent language (immediately, urgent, asap, emergency)
+        """
+        pass
+
+
+# Safety patterns
+FINANCIAL_PATTERNS = [
+    r'\bbank\s*(account|transfer)\b',
+    r'\bwire\s*transfer\b',
+    r'\bpayment\b',
+    r'\bcredit\s*card\b',
+    r'\bssn\b',
+    r'\bsocial\s*security\b',
+    r'\bwire\s*money\b',
+    r'\bsend\s*money\b',
+    r'\bbitcoin\b',
+    r'\bcrypto\b',
+]
+
+LEGAL_PATTERNS = [
+    r'\bcontract\b',
+    r'\blawsuit\b',
+    r'\bsue\b',
+    r'\battorney\b',
+    r'\blawyer\b',
+    r'\blegal\s*action\b',
+    r'\bn ? ?d\s*a\b',  # NDA variations
+    r'\bsettlement\b',
+    r'\bliability\b',
+]
+
+SENSITIVE_PATTERNS = [
+    r'\bpassword\b',
+    r'\bpasscode\b',
+    r'\bpin\b',
+    r'\bsecret\b',
+    r'\bconfidential\b',
+    r'\bmedical\b',
+    r'\bhealth\b',
+    r'\bdiagnosis\b',
+    r'\bpatient\b',
+]
+
+URGENT_PATTERNS = [
+    r'\bimmediately\b',
+    r'\burgent\b',
+    r'\basap\b',
+    r'\bemergency\b',
+    r'\bright\s*now\b',
+    r'\bdeadline\b',
+    r'\btime\s*sensitive\b',
+]
+
+
+def analyze_content_risk(text: str) -> Dict[str, List[str]]:
+    """Analyze text for risk patterns.
     
     Args:
-        mbox_path: Path to the .mbox file
-        output_csv: Path to output CSV file
+        text: Text to analyze
         
     Returns:
-        Number of emails processed
+        Dict with 'financial', 'legal', 'sensitive', 'urgent' lists of matches
     """
     pass
 
 
-def extract_email_address(header_value: str) -> str:
-    """Extract email address from From header.
+def get_auto_send_eligibility(score: float, risk_level: RiskLevel) -> Tuple[bool, str]:
+    """Determine if draft is eligible for auto-send.
     
     Args:
-        header_value: Full From header (e.g., "John Doe <john@example.com>")
+        score: Confidence score
+        risk_level: Content risk level
         
     Returns:
-        Email address only
+        Tuple of (eligible, reason)
     """
     pass
-
-
-def clean_body(body: str) -> str:
-    """Clean email body text.
-    
-    - Remove quoted replies (lines starting with >)
-    - Remove signatures (-- \n...)
-    - Strip whitespace
-    - Remove excessive newlines
-    
-    Args:
-        body: Raw email body
-        
-    Returns:
-        Cleaned body text
-    """
-    pass
-
-
-def is_sent_email(email_message, user_email: str) -> bool:
-    """Determine if email was sent by user.
-    
-    Checks:
-    - Is in Sent folder (folder name)
-    - From address matches user's email
-    - X-Gmail-Labels contains "Sent"
-    
-    Args:
-        email_message: email.message.Message object
-        user_email: User's email address
-        
-    Returns:
-        True if sent by user
-    """
-    pass
-
-
-def get_timestamp(email_message) -> Optional[str]:
-    """Extract timestamp from email.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        ISO format timestamp or None
-    """
-    pass
-
-
-def extract_thread_id(email_message) -> Optional[str]:
-    """Extract thread ID from email headers.
-    
-    Looks in:
-    - X-Gmail-Thread-Top
-    - X-Gmail-Thread-Index
-    - References header
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Thread ID or None
-    """
-    pass
-
-
-def extract_subject(email_message) -> str:
-    """Extract subject line, handling Re:, Fwd:, etc.
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Cleaned subject line
-    """
-    pass
-
-
-def extract_body(email_message) -> str:
-    """Extract body text from email.
-    
-    Handles:
-    - Plain text
-    - HTML (strips tags)
-    - Multipart (prefers plain text)
-    
-    Args:
-        email_message: email.message.Message object
-        
-    Returns:
-        Body text
-    """
-    pass
-
-
-def filter_useful_email(body: str, subject: str) -> bool:
-    """Filter out auto-generated emails.
-    
-    Excludes:
-    - Auto-replies (auto-generated, auto-reply, out of office)
-    - Bounces (delivery failed, undelivered)
-    - Notifications (new followup, mention)
-    - Empty or very short emails
-    
-    Args:
-        body: Email body text
-        subject: Email subject
-        
-    Returns:
-        True if email is useful for training
-    """
-    # Auto-generated patterns
-    auto_patterns = [
-        r'auto-?generated',
-        r'auto-?reply',
-        r'out of office',
-        r'ooo',
-        r'delivery failed',
-        r'undelivered',
-        r'mailer-?daemon',
-        r'noreply',
-        r'no-?reply',
-        r'don\'t reply',
-        r'notification',
-    ]
-    
-    # Check subject and body
-    text = (subject + ' ' + body).lower()
-    for pattern in auto_patterns:
-        if re.search(pattern, text):
-            return False
-    
-    # Minimum length check
-    if len(body.strip()) < 50:
-        return False
-    
-    return True
-
-
-def main():
-    """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Ingest emails from Gmail Takeout .mbox file"
-    )
-    parser.add_argument(
-        "--mbox",
-        required=True,
-        help="Path to .mbox file from Google Takeout"
-    )
-    parser.add_argument(
-        "--output",
-        default="data/training_emails.csv",
-        help="Output CSV file path"
-    )
-    parser.add_argument(
-        "--user-email",
-        help="Your email address (to detect sent emails)"
-    )
-    parser.add_argument(
-        "--sent-only",
-        action="store_true",
-        help="Only extract sent emails (skip inbox)"
-    )
-    
-    args = parser.parse_args()
-    
-    count = parse_mbox(args.mbox, args.output)
-    print(f"Processed {count} emails -> {args.output}")
-
-
-if __name__ == "__main__":
-    main()
 ```
 
 ---
 
-## Output Format
+## Testing Requirements
 
-### `data/training_emails.csv`
+### Unit Tests (tests/test_confidence.py)
 
-```csv
-thread_id,from,subject,body_text,sent_by_you,timestamp
-123abc,"John Doe <john@example.com>","Re: Project update","Hey team, just wanted to...","True","2024-01-15T10:30:00Z"
-456def,"Jane Smith <jane@company.com>","Meeting notes","Here are the notes from...","False","2024-01-15T09:15:00Z"
+```python
+class TestConfidenceScorer:
+    """Test cases for ConfidenceScorer."""
+    
+    def test_file_exists(self):
+        """Test confidence.py exists."""
+    
+    def test_import(self):
+        """Test ConfidenceScorer can be imported."""
+    
+    def test_class_has_required_methods(self):
+        """Test all required methods exist:
+        - score, should_auto_send, get_risk_level
+        """
+    
+    def test_default_auto_send_threshold(self):
+        """Test default threshold is 0.9."""
+    
+    def test_score_returns_score_result(self):
+        """Test score() returns ScoreResult dataclass."""
+    
+    def test_score_range(self):
+        """Test score is always between 0.0 and 1.0."""
+    
+    def test_auto_send_high_score(self):
+        """Test auto-send True for high score + low risk."""
+    
+    def test_no_auto_send_medium_score(self):
+        """Test auto-send False for medium score."""
+    
+    def test_no_auto_send_high_risk(self):
+        """Test auto-send False for any critical risk."""
+    
+    def test_financial_detection(self):
+        """Test financial patterns detected."""
+    
+    def test_legal_detection(self):
+        """Test legal patterns detected."""
+    
+    def test_sensitive_detection(self):
+        """Test sensitive patterns detected."""
+    
+    def test_urgent_detection(self):
+        """Test urgent patterns detected."""
+    
+    def test_score_result_has_reasoning(self):
+        """Test ScoreResult includes reasoning list."""
+
+
+class TestRiskLevel:
+    """Test RiskLevel enum."""
+    
+    def test_risk_levels_exist(self):
+        """Test all risk levels defined: LOW, MEDIUM, HIGH, CRITICAL."""
+
+
+class TestSafetyPatterns:
+    """Test safety pattern detection."""
+    
+    def test_financial_patterns_defined(self):
+        """Test FINANCIAL_PATTERNS list exists."""
+    
+    def test_legal_patterns_defined(self):
+        """Test LEGAL_PATTERNS list exists."""
+    
+    def test_sensitive_patterns_defined(self):
+        """Test SENSITIVE_PATTERNS list exists."""
+    
+    def test_urgent_patterns_defined(self):
+        """Test URGENT_PATTERNS list exists."""
 ```
-
-| Column | Type | Description |
-|--------|------|-------------|
-| thread_id | string | Gmail thread ID (or generated hash) |
-| from | string | Sender email (with name if available) |
-| subject | string | Email subject line |
-| body_text | string | Cleaned email body |
-| sent_by_you | boolean | True if user sent this email |
-| timestamp | ISO 8601 | When email was sent/received |
 
 ---
 
 ## Tasks
 
-### 1.3.1 User Instructions for Gmail Takeout (1 hr)
-- [ ] Document how to export Gmail via Google Takeout
-- [ ] Include step-by-step with expected wait time (24-48 hrs)
+### 4.2.1 Define Scoring Factors (1.5 hrs)
+- [ ] Define factor weights
+- [ ] Define ScoreResult dataclass
+- [ ] Define RiskLevel enum
 
-### 1.3.2 Build Mbox Parser (4 hrs)
-- [ ] Parse .mbox file format
-- [ ] Handle large files (streaming if needed)
-- [ ] Extract all required fields
+### 4.2.2 Implement Scoring Logic (2 hrs)
+- [ ] Implement score() method
+- [ ] Implement factor scoring methods
+- [ ] Combine factors with weights
 
-### 1.3.3 Detect Sent Emails (4 hrs)
-- [ ] Detect "Sent" folder
-- [ ] Match user's email address in From
-- [ ] Handle X-Gmail-Labels
+### 4.2.3 Implement Safety Rules (1.5 hrs)
+- [ ] Define pattern lists
+- [ ] Implement get_risk_level()
+- [ ] Implement auto-send eligibility
 
-### 1.3.4 Clean Email Data (2 hrs)
-- [ ] Strip signatures
-- [ ] Remove quoted replies
-- [ ] Filter auto-generated emails
-- [ ] Handle HTML → text conversion
+### 4.2.4 Write Tests (1 hr)
+- [ ] Write unit tests
+- [ ] Test edge cases
+- [ ] Test safety rules
 
-### 1.3.5 Output CSV (1 hr)
-- [ ] Write to CSV with correct schema
-- [ ] Handle special characters (encoding)
-- [ ] Create data/ directory if needed
+---
 
-### 1.3.6 Tests (2 hrs)
-- [ ] Unit tests for each function
-- [ ] Test with sample .mbox file
-- [ ] Verify CSV output schema
+## Scoring Algorithm
+
+```
+Total Score = Σ (Factor Score × Factor Weight)
+
+Factors:
+├── Sender Familiarity (25%)
+│   └── Higher if we've exchanged emails with sender before
+├── Response Length (15%)
+│   └── Optimal range: 50-300 characters
+├── Tone Match (15%)
+│   └── Higher if draft tone matches incoming email
+├── Context Relevance (20%)
+│   └── Higher when RAG finds relevant context
+└── Content Safety (25%)
+    └── Lower if risk patterns detected
+
+Auto-Send Decision:
+├── Score >= 0.9 AND RiskLevel == LOW → AUTO-SEND
+├── Score >= 0.5 AND RiskLevel != CRITICAL → QUEUE FOR REVIEW
+└── Score < 0.5 OR RiskLevel == CRITICAL → FLAG FOR MANUAL REVIEW
+```
 
 ---
 
 ## Dependencies
 
-| Dependency | Purpose |
-|------------|---------|
-| python-email | Standard library email parsing |
-| mailbox | Standard library .mbox handling |
-| html2text | Convert HTML to plain text |
+| Dependency | Status | Notes |
+|------------|--------|-------|
+| src.rag | ✅ Done | For context relevance scoring |
+| src.db | 🔲 3.2 | For sender familiarity |
 
 ---
 
-## Testing
+## Configuration
 
 ```bash
-# Basic usage
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --output data/training_emails.csv
-
-# With user email (better sent detection)
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --user-email your@email.com
-
-# Sent emails only
-python src/ingest.py --mbox ~/Downloads/takeout.mbox --sent-only
-
-# Run tests
-pytest tests/test_ingest.py -v
+# Environment variables
+AUTO_SEND_THRESHOLD=0.9     # Minimum score for auto-send
+CONFIDENCE_MIN_LENGTH=50    # Minimum response length
+CONFIDENCE_MAX_LENGTH=500   # Maximum response length
 ```
 
 ---
 
-## Google Takeout Instructions (to include in docs)
+## Running Tests
 
-1. Go to: https://takeout.google.com/
-2. Sign in with your Google account
-3. Click **"Create a new export"**
-4. Select **Gmail** (only)
-5. Click **All Mail** (include starred, important, etc.)
-6. Click **Next**
-7. Export format: **.mbox** (not .json)
-8. File frequency: **Once**
-9. Click **Create export**
-10. Wait 24-48 hours for Google to prepare your download
-11. Download and unzip
-12. Find the `.mbox` file in the extracted folder
+```bash
+pytest tests/test_confidence.py -v
 
----
-
-## Notes
-
-- Gmail Takeout produces one `.mbox` file per label/folder
-- Main files of interest: `All Mail.mbox`, `Sent.mbox`, `INBOX.mbox`
-- Large accounts: Takeout can produce GBs of data
-- Parser should handle malformed emails gracefully
+# Test scoring manually
+python -c "
+from src.confidence import ConfidenceScorer
+scorer = ConfidenceScorer()
+result = scorer.score({'from': 'test@example.com'}, {'text': 'Thanks!'})
+print(f'Score: {result.score}, Auto-send: {result.auto_send}')
+"
+```
 
 ---
 
 ## Definition of Done
 
-1. `src/ingest.py` implements all functions in deliverable spec
-2. `python src/ingest.py --mbox <file>` produces valid CSV
-3. CSV has correct schema: thread_id, from, subject, body_text, sent_by_you, timestamp
-4. Auto-generated emails are filtered out
-5. Unit tests pass
-6. Google Takeout instructions documented
-7. Branch pushed to GitHub
-8. PR created
+1. `src/confidence.py` implements ConfidenceScorer
+2. Score range 0.0-1.0
+3. Five scoring factors implemented
+4. Safety rules prevent auto-send for risky content
+5. All unit tests pass (minimum 15 tests)
+6. Branch pushed to GitHub
+7. PR created (not merged until dependencies ready)
