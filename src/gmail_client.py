@@ -1,12 +1,10 @@
 """Gmail client for Jeeves email operations."""
 import os
 import json
-import base64
 from typing import List, Dict, Optional
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from google.auth.transport.requests import Request
 
 
 class GmailClient:
@@ -32,6 +30,7 @@ class GmailClient:
     
     def _authenticate(self):
         """Authenticate using OAuth 2.0."""
+        from google.auth.transport.requests import Request
         creds = None
         
         # Load existing token
@@ -47,18 +46,20 @@ class GmailClient:
                 flow = InstalledAppFlow.from_client_secrets_file(self.creds_path, self.SCOPES)
                 creds = flow.run_local_server(port=0)
                 # Save token for future use
-                os.makedirs(os.path.dirname(self.token_path), exist_ok=True)
                 with open(self.token_path, 'w') as f:
                     f.write(creds.to_json())
         
-        if creds:
-            self.service = build('gmail', 'v1', credentials=creds)
+        self.service = build('gmail', 'v1', credentials=creds)
     
     def list_emails(self, limit: int = 100) -> List[Dict]:
-        """Fetch recent emails."""
-        if not self.service:
-            raise RuntimeError("Not authenticated")
+        """Fetch recent emails.
         
+        Args:
+            limit: Maximum number of emails to fetch
+            
+        Returns:
+            List of email dicts with: id, thread_id, subject, from, date, snippet
+        """
         results = self.service.users().messages().list(
             userId='me', maxResults=limit
         ).execute()
@@ -74,9 +75,15 @@ class GmailClient:
         return emails
     
     def get_email(self, message_id: str) -> Dict:
-        """Fetch a specific email by message ID."""
-        if not self.service:
-            raise RuntimeError("Not authenticated")
+        """Fetch a specific email by message ID.
+        
+        Args:
+            message_id: Gmail message ID
+            
+        Returns:
+            Email dict with: id, thread_id, subject, from, to, date, body_text, body_html
+        """
+        import base64
         
         msg = self.service.users().messages().get(
             userId='me', id=message_id, format='full'
@@ -91,27 +98,28 @@ class GmailClient:
         # Extract body
         body_text = ''
         body_html = ''
+        parts = msg.get('payload', {}).get('parts', [])
         
-        def extract_body(parts):
-            text, html = '', ''
+        def get_body(parts):
+            text = ''
+            html = ''
             for part in parts:
-                mt = part.get('mimeType', '')
-                if mt == 'text/plain':
-                    data = part.get('body', {}).get('data', '')
-                    if data:
-                        text = base64.urlsafe_b64decode(data).decode('utf-8')
-                elif mt == 'text/html':
-                    data = part.get('body', {}).get('data', '')
-                    if data:
-                        html = base64.urlsafe_b64decode(data).decode('utf-8')
+                if part.get('mimeType') == 'text/plain':
+                    text = part.get('body', {}).get('data', '')
+                elif part.get('mimeType') == 'text/html':
+                    html = part.get('body', {}).get('data', '')
                 if part.get('parts'):
-                    t, h = extract_body(part['parts'])
+                    t, h = get_body(part['parts'])
                     text = text or t
                     html = html or h
             return text, html
         
-        parts = msg.get('payload', {}).get('parts', [])
-        body_text, body_html = extract_body(parts)
+        body_text, body_html = get_body(parts)
+        
+        if body_text:
+            body_text = base64.urlsafe_b64decode(body_text).decode('utf-8')
+        if body_html:
+            body_html = base64.urlsafe_b64decode(body_html).decode('utf-8')
         
         return {
             'id': msg['id'],
@@ -126,9 +134,18 @@ class GmailClient:
         }
     
     def create_draft(self, thread_id: str, to: str, subject: str, body: str) -> str:
-        """Create a draft reply."""
-        if not self.service:
-            raise RuntimeError("Not authenticated")
+        """Create a draft reply.
+        
+        Args:
+            thread_id: Gmail thread ID
+            to: Recipient email address
+            subject: Email subject
+            body: Draft body content
+            
+        Returns:
+            Draft ID
+        """
+        import base64
         
         message = f"To: {to}\nSubject: {subject}\n\n{body}"
         encoded_message = base64.urlsafe_b64encode(message.encode('utf-8')).decode('utf-8')
@@ -147,15 +164,23 @@ class GmailClient:
         return result['id']
     
     def send_draft(self, draft_id: str) -> bool:
-        """Send a draft."""
-        if not self.service:
-            raise RuntimeError("Not authenticated")
+        """Send a draft.
         
+        Args:
+            draft_id: Gmail draft ID
+            
+        Returns:
+            True if successful
+        """
+        # First get the draft
         draft = self.service.users().drafts().get(
             userId='me', id=draft_id
         ).execute()
         
+        # Send the message
+        import base64
         message = draft['message']['raw']
+        
         self.service.users().messages().send(
             userId='me', body={'raw': message}
         ).execute()
@@ -163,10 +188,14 @@ class GmailClient:
         return True
     
     def list_drafts(self, limit: int = 10) -> List[Dict]:
-        """List drafts."""
-        if not self.service:
-            raise RuntimeError("Not authenticated")
+        """List drafts.
         
+        Args:
+            limit: Maximum number of drafts to fetch
+            
+        Returns:
+            List of draft dicts
+        """
         results = self.service.users().drafts().list(
             userId='me', maxResults=limit
         ).execute()
