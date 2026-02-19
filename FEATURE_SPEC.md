@@ -119,7 +119,9 @@ def mock_rag():
 def test_db(tmp_path):
     """Temporary database for testing."""
     pass
+```
 
+### `src/metrics.py`
 
 @pytest.fixture
 def e2e_pipeline(mock_gmail_client, mock_llm, mock_rag, test_db):
