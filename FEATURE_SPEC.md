@@ -1,284 +1,174 @@
-# Feature Spec: RAG Pipeline
+# Feature Spec: Response Generator
 
-**Phase:** 2.2  
-**Branch:** `feature/2.2-rag-pipeline`  
+**Phase:** 2.3  
+**Branch:** `feature/2.3-response-generator`  
 **Priority:** P0 (Blocking)  
-**Est. Time:** 20 hours
+**Est. Time:** 18 hours
 
 ---
 
 ## Objective
 
-Build the Retrieval-Augmented Generation pipeline to index training emails into ChromaDB and enable semantic search for context-aware response generation.
+Build the response generation system that uses the LLM + RAG pipeline to generate email drafts with context from past emails and specified tone modes.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Ollama installed and running
-- [ ] Base model pulled (`mistral:7b-instruct` or similar)
-- [x] `src/llm.py` implements LLM wrapper class
-- [x] `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"` works (needs Ollama)
-- [x] Unit tests pass
+- [ ] `src/response_generator.py` implements ResponseGenerator class
+- [ ] `generate_reply(incoming_email, tone)` method works
+- [ ] Tone modes: casual, formal, concise, match_style
+- [ ] Integrates with LLM (from 2.1) and RAG (from 2.2)
+- [ ] Tests verify all tone modes
+- [ ] Tests verify RAG context inclusion
+- [ ] Unit tests pass
 
 ---
 
 ## Deliverable
 
-### `src/rag.py`
+### `src/response_generator.py`
 
 ```python
-"""RAG pipeline for email context retrieval."""
-import os
-import csv
+"""Response generator using LLM + RAG for email drafting."""
 from typing import List, Dict, Optional
-from datetime import datetime
 
 
-class RAGPipeline:
-    """Retrieval-Augmented Generation pipeline using ChromaDB."""
+class ResponseGenerator:
+    """Generate email responses using LLM and RAG context."""
     
-    DEFAULT_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
-    DEFAULT_COLLECTION = "jeeves-emails"
+    # Tone configurations
+    TONES = {
+        "casual": {
+            "system_prompt": "You are writing a casual, friendly email. Use contractions, be warm, keep it conversational.",
+            "max_length": 200,
+        },
+        "formal": {
+            "system_prompt": "You are writing a formal professional email. Use proper grammar, be polite, maintain a professional tone.",
+            "max_length": 300,
+        },
+        "concise": {
+            "system_prompt": "You are writing a brief, to-the-point email. Get straight to the answer, minimize fluff.",
+            "max_length": 100,
+        },
+        "match_style": {
+            "system_prompt": "You are writing an email that matches the user's personal writing style from their past emails.",
+            "max_length": 250,
+        },
+    }
     
     def __init__(
         self,
-        persist_directory: str = "data/chroma_db",
-        embedding_model: str = None,
-        collection_name: str = None
+        llm=None,
+        rag=None,
+        default_tone: str = "match_style",
+        include_context: bool = True,
+        context_top_k: int = 5
     ):
-        """Initialize RAG pipeline.
-        
-        Args:
-            persist_directory: Where to store ChromaDB
-            embedding_model: HuggingFace embedding model
-            collection_name: ChromaDB collection name
-        """
-        self.persist_directory = persist_directory
-        self.embedding_model = embedding_model or os.environ.get(
-            'EMBEDDING_MODEL', self.DEFAULT_EMBEDDING_MODEL
-        )
-        self.collection_name = collection_name or self.DEFAULT_COLLECTION
-        self.client = None
-        self.collection = None
-        self.embedding_function = None
-        self._initialize()
-    
-    def _initialize(self):
-        """Initialize ChromaDB and embedding function."""
+        """Initialize response generator."""
         pass
     
-    def index_emails(self, csv_path: str, batch_size: int = 100) -> int:
-        """Index emails from CSV into ChromaDB.
-        
-        Args:
-            csv_path: Path to training_emails.csv
-            batch_size: Number of emails to process at once
-            
-        Returns:
-            Number of emails indexed
-        """
-        pass
-    
-    def add_email(
+    def generate_reply(
         self,
-        text: str,
-        metadata: Dict,
-        email_id: str = None
+        incoming_email: Dict,
+        tone: str = None,
+        custom_prompt: str = None
     ) -> str:
-        """Add a single email to the index.
-        
-        Args:
-            text: Email body text
-            metadata: Dict with thread_id, from, subject, etc.
-            email_id: Optional ID (generated if not provided)
-            
-        Returns:
-            Email ID
-        """
+        """Generate a reply to an incoming email."""
         pass
     
-    def search(
+    def generate_with_context(
         self,
-        query: str,
-        top_k: int = 5,
-        filter_metadata: Dict = None
-    ) -> List[Dict]:
-        """Search for relevant emails.
-        
-        Args:
-            query: Search query
-            top_k: Number of results to return
-            filter_metadata: Optional metadata filters
-            
-        Returns:
-            List of dicts with 'text', 'metadata', 'distance'
-        """
+        incoming_email: Dict,
+        context_emails: List[Dict]
+    ) -> str:
+        """Generate response with explicit context emails."""
         pass
     
-    def search_by_topic(self, topic: str, top_k: int = 5) -> List[Dict]:
-        """Search emails by topic/keyword.
-        
-        Args:
-            topic: Topic keyword
-            top_k: Number of results
-            
-        Returns:
-            List of relevant emails
-        """
+    def set_tone(self, tone: str):
+        """Set default tone for responses."""
         pass
     
-    def get_similar_emails(
-        self,
-        email_text: str,
-        top_k: int = 5
-    ) -> List[Dict]:
-        """Find emails similar to given text.
-        
-        Args:
-            email_text: Reference email text
-            top_k: Number of similar emails
-            
-        Returns:
-            List of similar emails
-        """
+    def get_available_tones(self) -> List[str]:
+        """Get list of available tone modes."""
         pass
     
-    def get_sent_emails(self, top_k: int = 10) -> List[Dict]:
-        """Get user's sent emails for style matching.
-        
-        Args:
-            top_k: Number of emails to return
-            
-        Returns:
-            List of sent emails
-        """
+    def _build_prompt(self, incoming_email: Dict, context: List[str] = None, tone: str = None, custom: str = None) -> tuple:
+        """Build prompt for LLM."""
         pass
     
-    def delete_all(self):
-        """Clear all indexed emails."""
-        pass
-    
-    def get_stats(self) -> Dict:
-        """Get index statistics.
-        
-        Returns:
-            Dict with count, model, etc.
-        """
-        pass
-    
-    def rebuild_index(self, csv_path: str) -> int:
-        """Clear and rebuild index from CSV.
-        
-        Args:
-            csv_path: Path to training_emails.csv
-            
-        Returns:
-            Number of emails indexed
-        """
+    def _get_style_from_past_emails(self, from_email: str) -> str:
+        """Analyze user's past emails to determine writing style."""
         pass
 
 
 # Convenience functions
 
-def index_emails(csv_path: str, **kwargs) -> int:
-    """Quick function to index emails.
-    
-    Args:
-        csv_path: Path to training_emails.csv
-        **kwargs: Additional args passed to RAGPipeline
-        
-    Returns:
-        Number of emails indexed
-    """
-    rag = RAGPipeline(**kwargs)
-    return rag.index_emails(csv_path)
-
-
-def search(query: str, top_k: int = 5, **kwargs) -> List[Dict]:
-    """Quick search function.
-    
-    Args:
-        query: Search query
-        top_k: Number of results
-        **kwargs: Additional args
-        
-    Returns:
-        List of relevant emails
-    """
-    rag = RAGPipeline(**kwargs)
-    return rag.search(query, top_k)
+def generate_reply(incoming_email: Dict, tone: str = None, **kwargs) -> str:
+    """Quick function to generate a reply."""
+    gen = ResponseGenerator(**kwargs)
+    return gen.generate_reply(incoming_email, tone)
 ```
 
 ---
 
-## Data Flow
+## Testing Requirements
 
-```
-training_emails.csv
-       │
-       ▼
-┌──────────────────┐
-│  RAGPipeline    │
-│  .index_emails() │
-└──────────────────┘
-       │
-       ▼
-┌──────────────────┐
-│   ChromaDB      │
-│  (vector store) │
-└──────────────────┘
-       │
-       ▼
-┌──────────────────┐
-│  .search()      │
-│ .get_sent_email()│
-└──────────────────┘
-       │
-       ▼
-   Email Context
-       │
-       ▼
-┌──────────────────┐
-│  LLM Prompt     │
-└──────────────────┘
-```
+### Unit Tests (tests/test_response_generator.py)
+
+The tests must verify:
+
+1. **File & Import Tests**
+   - `test_file_exists` - src/response_generator.py exists
+   - `test_import` - ResponseGenerator can be imported
+
+2. **Method Tests**
+   - `test_class_has_required_methods` - generate_reply, generate_with_context, set_tone, get_available_tones
+   - `test_convenience_function_exists` - generate_reply() function exists
+
+3. **Tone Tests**
+   - `test_tone_modes_defined` - All 4 tones exist: casual, formal, concise, match_style
+   - `test_tones_dict_structure` - Each tone has system_prompt and max_length
+   - `test_default_tone` - Default is 'match_style'
+   - `test_set_tone` - set_tone() changes default
+   - `test_get_available_tones` - Returns list of 4 tone names
+
+4. **Integration Tests**
+   - `test_llm_integration` - LLM is called for generation
+   - `test_rag_integration` - RAG context is included
+   - `test_tone_affects_prompt` - Different tones produce different prompts
+
+5. **Edge Case Tests**
+   - `test_empty_email_handling` - Missing email fields handled gracefully
+
+6. **Dependency Tests**
+   - `test_requirements_have_dependencies` - Required packages in requirements.txt
 
 ---
 
 ## Tasks
 
-### 2.2.1 Install ChromaDB (30 min)
-- [ ] Install: `pip install chromadb sentence-transformers`
-- [ ] Verify: `python -c "import chromadb; print(chromadb.__version__)"`
+### 2.3.1 Build ResponseGenerator Class (8 hrs)
+- [ ] Implement __init__ with LLM/RAG integration
+- [ ] Define TONES dictionary with prompts
+- [ ] Implement generate_reply() with tone selection
+- [ ] Implement generate_with_context()
+- [ ] Implement set_tone() and get_available_tones()
 
-### 2.2.2 Download Embedding Model (1 hr)
-- [ ] Model: `BAAI/bge-base-en-v1.5` (~400MB)
-- [ ] Test: `python -c "from sentence_transformers import SentenceTransformer; m = SentenceTransformer('BAAI/bge-base-en-v1.5'); print(m.encode('test').shape)"`
+### 2.3.2 Prompt Building (4 hrs)
+- [ ] Implement _build_prompt() 
+- [ ] Handle tone injection
+- [ ] Handle context inclusion
+- [ ] Handle custom prompts
 
-### 2.2.3 Build RAG Pipeline (8 hrs)
-- [ ] Implement RAGPipeline class
-- [ ] Set up ChromaDB client with persistence
-- [ ] Implement embedding function using sentence-transformers
-- [ ] Implement indexing (CSV → ChromaDB)
-- [ ] Implement search (query → results)
-- [ ] Add metadata filtering
+### 2.3.3 Style Matching (4 hrs)
+- [ ] Implement _get_style_from_past_emails()
+- [ ] Query RAG for user's sent emails
+- [ ] Extract style characteristics
 
-### 2.2.4 Implement Context Functions (4 hrs)
-- [ ] `get_sent_emails()` for style matching
-- [ ] `get_similar_emails()` for context
-- [ ] `search_by_topic()` keyword search
-
-### 2.2.5 Test Retrieval Quality (4 hrs)
-- [ ] Test: Query "refund request" → 5 similar emails
-- [ ] Test various query types
-- [ ] Measure retrieval accuracy
-
-### 2.2.6 Unit Tests (2.5 hrs)
-- [ ] Test RAGPipeline initialization
-- [ ] Test indexing
-- [ ] Test search
-- [ ] Test edge cases
+### 2.3.4 Write Tests (2 hrs)
+- [ ] Write all tests per testing requirements
+- [ ] Run and fix failures
 
 ---
 
@@ -286,100 +176,42 @@ training_emails.csv
 
 | Dependency | Purpose |
 |------------|---------|
-| chromadb | Vector database |
-| sentence-transformers | Embedding model |
-| huggingface-hub | Model downloads |
-
----
-
-## Configuration
-
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `EMBEDDING_MODEL` | BAAI/bge-base-en-v1.5 | HuggingFace model |
-| `CHROMA_PERSIST_DIR` | data/chroma_db | DB storage path |
+| src.llm | LLM wrapper from 2.1 |
+| src.rag | RAG pipeline from 2.2 |
 
 ---
 
 ## Testing
 
 ```bash
-# Test ChromaDB import
-python -c "import chromadb; print('OK')"
-
-# Test embedding model
-python -c "from sentence_transformers import SentenceTransformer; m = SentenceTransformer('BAAI/bge-base-en-v1.5'); print(m.encode('test').shape)"
-
-# Index emails
-python -c "
-from src.rag import RAGPipeline
-rag = RAGPipeline()
-count = rag.index_emails('data/training_emails.csv')
-print(f'Indexed {count} emails')
-"
-
-# Search
-python -c "
-from src.rag import RAGPipeline
-rag = RAGPipeline()
-results = rag.search('refund request', top_k=5)
-for r in results:
-    print(r['metadata']['subject'], r['distance'])
-"
-
-# Get stats
-python -c "
-from src.rag import RAGPipeline
-print(RAGPipeline().get_stats())
-"
-
 # Run tests
-pytest tests/test_rag.py -v
-```
+pytest tests/test_response_generator.py -v
 
----
-
-## Schema
-
-### ChromaDB Collection Schema
-
-```python
-{
-    "ids": ["email_1", "email_2", ...],
-    "embeddings": [[vector], [vector], ...],  # 768-dim for bge-base
-    "documents": ["email body text", ...],
-    "metadatas": [
-        {
-            "thread_id": "abc123",
-            "from": "sender@example.com",
-            "subject": "Subject Line",
-            "sent_by_you": "True",
-            "timestamp": "2024-01-15T10:30:00Z"
-        },
-        ...
-    ]
-}
+# Test generation
+python -c "
+from src.response_generator import ResponseGenerator
+email = {'subject': 'Meeting?', 'from': 'bob@example.com', 'body_text': 'Are we still meeting tomorrow?'}
+gen = ResponseGenerator()
+draft = gen.generate_reply(email, tone='formal')
+print(draft)
+"
 ```
 
 ---
 
 ## Notes
 
-- Embedding model runs on CPU (GPU optional for speed)
-- First run downloads model (~400MB)
-- ChromaDB persists to disk - index survives restarts
-- Index rebuilds if model changes
+- Response generator depends on 2.1 (LLM) and 2.2 (RAG) being complete
+- Tone prompts can be customized in .env or config
+- max_length is a guideline, LLM may exceed slightly
 
 ---
 
 ## Definition of Done
 
-1. ChromaDB installed and working
-2. Embedding model downloaded and tested
-3. `src/rag.py` implements RAGPipeline
-4. `index_emails(csv_path)` indexes training emails
-5. `search(query, top_k)` returns relevant results
-6. Test query "refund request" → 5 similar emails
-7. Unit tests pass
-8. Branch pushed to GitHub
-9. PR created
+1. `src/response_generator.py` implements ResponseGenerator
+2. All 4 tone modes work
+3. RAG context is included in generation
+4. All unit tests pass (minimum 12 tests)
+5. Branch pushed to GitHub
+6. PR created
