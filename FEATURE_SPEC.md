@@ -1,15 +1,15 @@
-# Feature Spec: LLM Setup
+# Feature Spec: RAG Pipeline
 
-**Phase:** 2.1  
-**Branch:** `feature/2.1-llm-setup`  
+**Phase:** 2.2  
+**Branch:** `feature/2.2-rag-pipeline`  
 **Priority:** P0 (Blocking)  
-**Est. Time:** 5 hours
+**Est. Time:** 20 hours
 
 ---
 
 ## Objective
 
-Set up local LLM inference using Ollama and create a Python wrapper for generating email responses.
+Build the Retrieval-Augmented Generation pipeline to index training emails into ChromaDB and enable semantic search for context-aware response generation.
 
 ---
 
@@ -25,182 +25,260 @@ Set up local LLM inference using Ollama and create a Python wrapper for generati
 
 ## Deliverable
 
-### `src/llm.py`
+### `src/rag.py`
 
 ```python
-"""Local LLM wrapper using Ollama."""
+"""RAG pipeline for email context retrieval."""
 import os
-import json
+import csv
 from typing import List, Dict, Optional
+from datetime import datetime
 
 
-class LLM:
-    """Ollama LLM wrapper for generating email responses."""
+class RAGPipeline:
+    """Retrieval-Augmented Generation pipeline using ChromaDB."""
     
-    DEFAULT_MODEL = "mistral:7b-instruct"
-    DEFAULT_BASE_URL = "http://localhost:11434"
+    DEFAULT_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
+    DEFAULT_COLLECTION = "jeeves-emails"
     
     def __init__(
         self,
-        model: str = None,
-        base_url: str = None,
-        temperature: float = 0.7,
-        max_tokens: int = 500
+        persist_directory: str = "data/chroma_db",
+        embedding_model: str = None,
+        collection_name: str = None
     ):
-        """Initialize LLM wrapper.
+        """Initialize RAG pipeline.
         
         Args:
-            model: Model name (default: mistral:7b-instruct)
-            base_url: Ollama API base URL
-            temperature: Sampling temperature (0.0-1.0)
-            max_tokens: Maximum tokens to generate
+            persist_directory: Where to store ChromaDB
+            embedding_model: HuggingFace embedding model
+            collection_name: ChromaDB collection name
         """
-        self.model = model or os.environ.get('OLLAMA_MODEL', self.DEFAULT_MODEL)
-        self.base_url = base_url or os.environ.get('OLLAMA_BASE_URL', self.DEFAULT_BASE_URL)
-        self.temperature = temperature
-        self.max_tokens = max_tokens
+        self.persist_directory = persist_directory
+        self.embedding_model = embedding_model or os.environ.get(
+            'EMBEDDING_MODEL', self.DEFAULT_EMBEDDING_MODEL
+        )
+        self.collection_name = collection_name or self.DEFAULT_COLLECTION
+        self.client = None
+        self.collection = None
+        self.embedding_function = None
+        self._initialize()
     
-    def generate(self, prompt: str, system_prompt: str = None) -> str:
-        """Generate text from prompt.
+    def _initialize(self):
+        """Initialize ChromaDB and embedding function."""
+        pass
+    
+    def index_emails(self, csv_path: str, batch_size: int = 100) -> int:
+        """Index emails from CSV into ChromaDB.
         
         Args:
-            prompt: User prompt
-            system_prompt: Optional system prompt
+            csv_path: Path to training_emails.csv
+            batch_size: Number of emails to process at once
             
         Returns:
-            Generated text
+            Number of emails indexed
         """
         pass
     
-    def generate_with_context(
+    def add_email(
         self,
-        prompt: str,
-        context_docs: List[str],
-        system_prompt: str = None
+        text: str,
+        metadata: Dict,
+        email_id: str = None
     ) -> str:
-        """Generate text with RAG context.
+        """Add a single email to the index.
         
         Args:
-            prompt: User prompt
-            context_docs: List of relevant documents to include
-            system_prompt: Optional system prompt
+            text: Email body text
+            metadata: Dict with thread_id, from, subject, etc.
+            email_id: Optional ID (generated if not provided)
             
         Returns:
-            Generated text
+            Email ID
         """
         pass
     
-    def chat(
+    def search(
         self,
-        messages: List[Dict[str, str]]
-    ) -> str:
-        """Chat completion style interface.
+        query: str,
+        top_k: int = 5,
+        filter_metadata: Dict = None
+    ) -> List[Dict]:
+        """Search for relevant emails.
         
         Args:
-            messages: List of message dicts with 'role' and 'content'
+            query: Search query
+            top_k: Number of results to return
+            filter_metadata: Optional metadata filters
             
         Returns:
-            Assistant response
+            List of dicts with 'text', 'metadata', 'distance'
         """
         pass
     
-    def is_available(self) -> bool:
-        """Check if Ollama is running and model is available.
+    def search_by_topic(self, topic: str, top_k: int = 5) -> List[Dict]:
+        """Search emails by topic/keyword.
         
+        Args:
+            topic: Topic keyword
+            top_k: Number of results
+            
         Returns:
-            True if LLM is accessible
+            List of relevant emails
         """
         pass
     
-    def list_models(self) -> List[str]:
-        """List available models.
+    def get_similar_emails(
+        self,
+        email_text: str,
+        top_k: int = 5
+    ) -> List[Dict]:
+        """Find emails similar to given text.
+        
+        Args:
+            email_text: Reference email text
+            top_k: Number of similar emails
+            
+        Returns:
+            List of similar emails
+        """
+        pass
+    
+    def get_sent_emails(self, top_k: int = 10) -> List[Dict]:
+        """Get user's sent emails for style matching.
+        
+        Args:
+            top_k: Number of emails to return
+            
+        Returns:
+            List of sent emails
+        """
+        pass
+    
+    def delete_all(self):
+        """Clear all indexed emails."""
+        pass
+    
+    def get_stats(self) -> Dict:
+        """Get index statistics.
         
         Returns:
-            List of model names
+            Dict with count, model, etc.
+        """
+        pass
+    
+    def rebuild_index(self, csv_path: str) -> int:
+        """Clear and rebuild index from CSV.
+        
+        Args:
+            csv_path: Path to training_emails.csv
+            
+        Returns:
+            Number of emails indexed
         """
         pass
 
 
 # Convenience functions
 
-def generate(prompt: str, **kwargs) -> str:
-    """Quick generate function.
+def index_emails(csv_path: str, **kwargs) -> int:
+    """Quick function to index emails.
     
     Args:
-        prompt: User prompt
-        **kwargs: Additional args passed to LLM.generate()
+        csv_path: Path to training_emails.csv
+        **kwargs: Additional args passed to RAGPipeline
         
     Returns:
-        Generated text
+        Number of emails indexed
     """
-    llm = LLM(**kwargs)
-    return llm.generate(prompt)
+    rag = RAGPipeline(**kwargs)
+    return rag.index_emails(csv_path)
 
 
-def generate_with_context(prompt: str, context_docs: List[str], **kwargs) -> str:
-    """Quick generate with context function.
+def search(query: str, top_k: int = 5, **kwargs) -> List[Dict]:
+    """Quick search function.
     
     Args:
-        prompt: User prompt
-        context_docs: Documents to include as context
+        query: Search query
+        top_k: Number of results
         **kwargs: Additional args
         
     Returns:
-        Generated text
+        List of relevant emails
     """
-    llm = LLM(**kwargs)
-    return llm.generate_with_context(prompt, context_docs)
+    rag = RAGPipeline(**kwargs)
+    return rag.search(query, top_k)
 ```
 
 ---
 
-## Configuration
+## Data Flow
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OLLAMA_BASE_URL` | http://localhost:11434 | Ollama API URL |
-| `OLLAMA_MODEL` | mistral:7b-instruct | Default model |
-| `OLLAMA_TEMPERATURE` | 0.7 | Generation temperature |
-
-### Model Options
-
-Recommended models for email assistant:
-- `mistral:7b-instruct` - Fast, good quality (recommended)
-- `llama2:7b` - Meta's model
-- `mixtral:8x7b` - More powerful, needs more RAM
-- `phi:2.7b` - Lightweight option
+```
+training_emails.csv
+       │
+       ▼
+┌──────────────────┐
+│  RAGPipeline    │
+│  .index_emails() │
+└──────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│   ChromaDB      │
+│  (vector store) │
+└──────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│  .search()      │
+│ .get_sent_email()│
+└──────────────────┘
+       │
+       ▼
+   Email Context
+       │
+       ▼
+┌──────────────────┐
+│  LLM Prompt     │
+└──────────────────┘
+```
 
 ---
 
 ## Tasks
 
-### 2.1.1 Install Ollama (30 min)
-- [ ] Install Ollama: `curl -fsSL https://ollama.com/install.sh | sh`
-- [ ] Start Ollama service: `ollama serve`
-- [ ] Verify running: `ollama list`
+### 2.2.1 Install ChromaDB (30 min)
+- [ ] Install: `pip install chromadb sentence-transformers`
+- [ ] Verify: `python -c "import chromadb; print(chromadb.__version__)"`
 
-### 2.1.2 Pull Base Model (10 min)
-- [ ] Pull model: `ollama pull mistral:7b-instruct`
-- [ ] Test: `ollama run mistral:7b-instruct "Hello"`
+### 2.2.2 Download Embedding Model (1 hr)
+- [ ] Model: `BAAI/bge-base-en-v1.5` (~400MB)
+- [ ] Test: `python -c "from sentence_transformers import SentenceTransformer; m = SentenceTransformer('BAAI/bge-base-en-v1.5'); print(m.encode('test').shape)"`
 
-### 2.1.3 Build LLM Wrapper (3 hrs)
-- [ ] Implement `LLM` class with all methods
-- [ ] Handle API calls to Ollama
-- [ ] Add error handling
-- [ ] Add retry logic for failures
+### 2.2.3 Build RAG Pipeline (8 hrs)
+- [ ] Implement RAGPipeline class
+- [ ] Set up ChromaDB client with persistence
+- [ ] Implement embedding function using sentence-transformers
+- [ ] Implement indexing (CSV → ChromaDB)
+- [ ] Implement search (query → results)
+- [ ] Add metadata filtering
 
-### 2.1.4 Test Integration (1 hr)
-- [ ] Test: `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"`
-- [ ] Test with longer prompts
-- [ ] Test with context
+### 2.2.4 Implement Context Functions (4 hrs)
+- [ ] `get_sent_emails()` for style matching
+- [ ] `get_similar_emails()` for context
+- [ ] `search_by_topic()` keyword search
 
-### 2.1.5 Unit Tests (30 min)
-- [ ] Test LLM class initialization
-- [ ] Test generate method
-- [ ] Test is_available method
-- [ ] Mock tests for API calls
+### 2.2.5 Test Retrieval Quality (4 hrs)
+- [ ] Test: Query "refund request" → 5 similar emails
+- [ ] Test various query types
+- [ ] Measure retrieval accuracy
+
+### 2.2.6 Unit Tests (2.5 hrs)
+- [ ] Test RAGPipeline initialization
+- [ ] Test indexing
+- [ ] Test search
+- [ ] Test edge cases
 
 ---
 
@@ -208,60 +286,100 @@ Recommended models for email assistant:
 
 | Dependency | Purpose |
 |------------|---------|
-| requests | HTTP calls to Ollama API |
-| python-dotenv | Environment variable loading |
+| chromadb | Vector database |
+| sentence-transformers | Embedding model |
+| huggingface-hub | Model downloads |
+
+---
+
+## Configuration
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `EMBEDDING_MODEL` | BAAI/bge-base-en-v1.5 | HuggingFace model |
+| `CHROMA_PERSIST_DIR` | data/chroma_db | DB storage path |
 
 ---
 
 ## Testing
 
 ```bash
-# Test basic generation
-python -c "from src.llm import LLM; print(LLM().generate('Hello'))"
+# Test ChromaDB import
+python -c "import chromadb; print('OK')"
 
-# Test with context
+# Test embedding model
+python -c "from sentence_transformers import SentenceTransformer; m = SentenceTransformer('BAAI/bge-base-en-v1.5'); print(m.encode('test').shape)"
+
+# Index emails
 python -c "
-from src.llm import LLM
-llm = LLM()
-docs = ['Previous email: Thanks for the update!', 'Your writing style is concise.']
-print(llm.generate_with_context('Draft a reply to the project update', docs))
+from src.rag import RAGPipeline
+rag = RAGPipeline()
+count = rag.index_emails('data/training_emails.csv')
+print(f'Indexed {count} emails')
 "
 
-# Test chat
+# Search
 python -c "
-from src.llm import LLM
-llm = LLM()
-messages = [
-    {'role': 'user', 'content': 'Hello'},
-]
-print(llm.chat(messages))
+from src.rag import RAGPipeline
+rag = RAGPipeline()
+results = rag.search('refund request', top_k=5)
+for r in results:
+    print(r['metadata']['subject'], r['distance'])
 "
 
-# Test availability
-python -c "from src.llm import LLM; print(LLM().is_available())"
+# Get stats
+python -c "
+from src.rag import RAGPipeline
+print(RAGPipeline().get_stats())
+"
 
 # Run tests
-pytest tests/test_llm.py -v
+pytest tests/test_rag.py -v
+```
+
+---
+
+## Schema
+
+### ChromaDB Collection Schema
+
+```python
+{
+    "ids": ["email_1", "email_2", ...],
+    "embeddings": [[vector], [vector], ...],  # 768-dim for bge-base
+    "documents": ["email body text", ...],
+    "metadatas": [
+        {
+            "thread_id": "abc123",
+            "from": "sender@example.com",
+            "subject": "Subject Line",
+            "sent_by_you": "True",
+            "timestamp": "2024-01-15T10:30:00Z"
+        },
+        ...
+    ]
+}
 ```
 
 ---
 
 ## Notes
 
-- Ollama must be running locally (or accessible via network)
-- First model pull takes time (GBs)
-- GPU recommended but CPU works (slower)
-- Model stays loaded in memory for fast inference
+- Embedding model runs on CPU (GPU optional for speed)
+- First run downloads model (~400MB)
+- ChromaDB persists to disk - index survives restarts
+- Index rebuilds if model changes
 
 ---
 
 ## Definition of Done
 
-1. Ollama installed and model pulled
-2. `src/llm.py` implements LLM wrapper
-3. `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"` succeeds
-4. `generate_with_context()` works with RAG docs
-5. `chat()` works with message history
-6. Unit tests pass
-7. Branch pushed to GitHub
-8. PR created
+1. ChromaDB installed and working
+2. Embedding model downloaded and tested
+3. `src/rag.py` implements RAGPipeline
+4. `index_emails(csv_path)` indexes training emails
+5. `search(query, top_k)` returns relevant results
+6. Test query "refund request" → 5 similar emails
+7. Unit tests pass
+8. Branch pushed to GitHub
+9. PR created
