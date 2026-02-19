@@ -276,6 +276,7 @@ class InputValidator:
         """Check for path traversal attempts."""
         pass
 
+### `src/metrics.py`
 
 class RateLimiter:
     """Rate limiting for API calls."""
