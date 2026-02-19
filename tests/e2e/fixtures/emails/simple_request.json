@@ -1,0 +1,14 @@
+{
+  "id": "fixture_simple_001",
+  "thread_id": "thread_simple_001",
+  "from": "colleague@company.com",
+  "to": "me@example.com",
+  "subject": "Quick question",
+  "body_text": "Hey, do you have a minute to chat about the project?",
+  "date": "2024-01-15T10:00:00Z",
+  "expected": {
+    "should_process": true,
+    "min_confidence": 0.7,
+    "suggested_tone": "casual"
+  }
+}
