@@ -1,236 +1,186 @@
-# Feature Spec: Environment Setup
+# Feature Spec: Gmail OAuth Integration
 
-**Phase:** 1.1  
-**Branch:** `feature/1.1-environment-setup`  
+**Phase:** 1.2  
+**Branch:** `feature/1.2-gmail-oauth`  
 **Priority:** P0 (Blocking)  
-**Est. Time:** 4 hours
+**Est. Time:** 8 hours
 
 ---
 
 ## Objective
 
-Set up the Python project structure and dependencies for the Jeeves email agent.
+Enable Jeeves to authenticate with Gmail via OAuth 2.0 and provide a Python client wrapper for email operations.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Python 3.10+ virtual environment created
-- [ ] `requirements.txt` with all core dependencies
-- [ ] `.env.example` file with required environment variables
-- [ ] `src/` directory structure created
-- [ ] `python -m pip install -r requirements.txt` succeeds
-- [ ] `python -c "import src"` succeeds
+- [ ] Gmail API enabled in Google Cloud Console
+- [ ] OAuth 2.0 Desktop credentials created
+- [ ] Credentials stored in AWS Secrets Manager (`alyxclaw/google/`)
+- [ ] `gog` CLI authentication verified
+- [ ] `src/gmail_client.py` implements required methods
+- [ ] Can fetch last 10 emails via Python
 
 ---
 
-## Files to Create
+## Deliverable
 
-### 1. `requirements.txt`
-```
-# Core
-python-dotenv>=1.0.0
+### `src/gmail_client.py`
 
-# Gmail & OAuth
-google-auth-oauthlib>=1.2.0
-google-auth-httplib2>=0.2.0
-google-api-python-client>=2.100.0
-
-# Email Processing
-html2text>=2020.1.16
-
-# ML/AI
-torch>=2.0.0
-transformers>=4.35.0
-datasets>=2.14.0
-peft>=0.7.0
-accelerate>=0.24.0
-
-# Local LLM
-# ollama (install separately: curl -fsSL https://ollama.com/install.sh | sh)
-
-# Vector DB
-chromadb>=0.4.0
-sentence-transformers>=2.2.0
-
-# RAG & Agents
-langchain>=0.1.0
-langchain-community>=0.0.10
-llama-index>=0.9.0
-llama-index-embeddings-huggingface>=0.1.0
-
-# UI
-gradio>=4.0.0
-fastapi>=0.104.0
-uvicorn>=0.24.0
-
-# Data
-pandas>=2.0.0
-pyarrow>=14.0.0
-
-# Utils
-structlog>=23.0.0
-keyring>=24.0.0
-requests>=2.31.0
-
-# Testing
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-pytest-cov>=4.1.0
-```
-
-### 2. `.env.example`
-```
-# Google OAuth
-GDOCS_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GDOCS_CLIENT_SECRET=your-client-secret
-GDOCS_REFRESH_TOKEN=your-refresh-token
-
-# AWS (for secrets)
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_DEFAULT_REGION=us-east-1
-
-# LLM
-OLLAMA_BASE_URL=http://localhost:11434
-DEFAULT_MODEL=mistral:7b-instruct
-
-# App
-LOG_LEVEL=INFO
-DATA_DIR=./data
-MODELS_DIR=./models
-```
-
-### 3. `src/__init__.py`
 ```python
-"""
-Jeeves - AI Email Assistant
+from typing import List, Dict, Optional
 
-An email agent that learns your writing style and drafts responses.
-"""
-
-__version__ = "0.1.0"
+class GmailClient:
+    """Gmail API wrapper for Jeeves email operations."""
+    
+    def list_emails(self, limit: int = 100) -> List[Dict]:
+        """Fetch recent emails.
+        
+        Args:
+            limit: Maximum number of emails to fetch (default 100)
+            
+        Returns:
+            List of email dicts with keys: id, thread_id, subject, from, date, snippet
+        """
+        pass
+    
+    def get_email(self, message_id: str) -> Dict:
+        """Fetch a specific email by message ID.
+        
+        Args:
+            message_id: Gmail message ID
+            
+        Returns:
+            Email dict with keys: id, thread_id, subject, from, to, date, body_text, body_html
+        """
+        pass
+    
+    def create_draft(self, thread_id: str, to: str, subject: str, body: str) -> str:
+        """Create a draft reply.
+        
+        Args:
+            thread_id: Gmail thread ID
+            to: Recipient email address
+            subject: Email subject
+            body: Draft body content
+            
+        Returns:
+            Draft ID
+        """
+        pass
+    
+    def send_draft(self, draft_id: str) -> bool:
+        """Send a draft.
+        
+        Args:
+            draft_id: Gmail draft ID
+            
+        Returns:
+            True if successful
+        """
+        pass
+    
+    def list_drafts(self, limit: int = 10) -> List[Dict]:
+        """List drafts.
+        
+        Args:
+            limit: Maximum number of drafts to fetch
+            
+        Returns:
+            List of draft dicts
+        """
+        pass
 ```
 
-### 4. Directory Structure
-```
-jeeves/
-├── src/
-│   └── __init__.py
-├── tests/
-│   └── __init__.py
-├── data/
-│   └── .gitkeep
-├── models/
-│   └── .gitkeep
-├── logs/
-│   └── .gitkeep
-├── requirements.txt
-├── .env.example
-├── .gitignore
-└── README.md (update if needed)
-```
+---
 
-### 5. `.gitignore`
-```
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+## Tasks
 
-# Virtual environments
-venv/
-ENV/
-env/
-.venv/
+### 1.2.1 Enable Gmail API (30 min)
+- [ ] Navigate to Google Cloud Console
+- [ ] Create new project or select existing
+- [ ] Enable Gmail API
+- [ ] Configure OAuth consent screen
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+### 1.2.2 Create OAuth Credentials (30 min)
+- [ ] Create OAuth 2.0 Desktop app credentials
+- [ ] Download `credentials.json`
+- [ ] Note: Client secret needed for AWS SM
 
-# Environment
-.env
-.env.local
+### 1.2.3 Store Credentials in AWS (1 hr)
+- [ ] Store in `alyxclaw/google/` prefix
+- [ ] Keys needed:
+  - `gmail-oauth-client-id`
+  - `gmail-oauth-client-secret`
+  - `gmail-refresh-token` (after first auth)
 
-# Data (keep structure, ignore content)
-data/*.csv
-data/*.db
-data/*.mbox
-!data/.gitkeep
+### 1.2.4 Test gog CLI (1 hr)
+- [ ] Verify gog can authenticate with Gmail
+- [ ] Test `gog gmail list --limit 10`
 
-# Models (keep structure, ignore content)
-models/*.gguf
-models/*.bin
-!models/.gitkeep
+### 1.2.5 Build Gmail Client Wrapper (4 hrs)
+- [ ] Implement `GmailClient` class
+- [ ] Use google-auth-oauthlib for authentication
+- [ ] Handle token refresh automatically
+- [ ] Implement all methods in deliverable spec
+- [ ] Add error handling for rate limits
 
-# Logs
-logs/*.log
-logs/*.jsonl
-!logs/.gitkeep
+---
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+## Dependencies
 
-# OS
-.DS_Store
-Thumbs.db
-```
+| Dependency | Purpose |
+|------------|---------|
+| google-auth-oauthlib | OAuth 2.0 flow |
+| google-auth-httplib2 | HTTP requests |
+| google-api-python-client | Gmail API |
+| gog CLI | Credentials management |
 
 ---
 
 ## Testing
 
-After implementation:
-```bash
-# Create and activate venv
-python3 -m venv venv
-source venv/bin/activate
+```python
+from src.gmail_client import GmailClient
 
-# Install dependencies
-pip install -r requirements.txt
+client = GmailClient()
 
-# Verify import
-python -c "import src; print('OK')"
+# Test fetching emails
+emails = client.list_emails(limit=10)
+print(f"Fetched {len(emails)} emails")
 
-# Run tests (placeholder)
-pytest tests/ -v
+# Test getting a specific email
+if emails:
+    email = client.get_email(emails[0]['id'])
+    print(f"Subject: {email['subject']}")
+
+# Test draft creation
+draft_id = client.create_draft(
+    thread_id=emails[0]['thread_id'],
+    to=email['from'],
+    subject=f"Re: {email['subject']}",
+    body="This is a test draft."
+)
+print(f"Created draft: {draft_id}")
 ```
 
 ---
 
 ## Notes
 
-- `ollama` must be installed separately (system package)
-- GPU dependencies (bitsandbytes) are optional for CPU-only setups
-- `.env` file should NEVER be committed
+- Refresh tokens don't expire unless revoked — store securely
+- Gmail API rate limit: 250 calls/second/user
+- Use batch requests for bulk operations
+- `gog` CLI handles OAuth flow conveniently — leverage it for initial auth
 
 ---
 
 ## Definition of Done
 
-1. All files created as specified
-2. `pip install -r requirements.txt` completes without errors
-3. `python -c "import src"` runs successfully
-4. Branch pushed to GitHub
-5. PR created with description matching this spec
+1. OAuth credentials created and stored in AWS SM
+2. `gog gmail list` works from CLI
+3. `src/gmail_client.py` implements all 5 methods
+4. `python -c "from src.gmail_client import GmailClient; c = GmailClient(); print(len(c.list_emails(10)))"` succeeds
+5. Branch pushed to GitHub
+6. PR created
