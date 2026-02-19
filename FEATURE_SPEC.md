@@ -1,269 +1,365 @@
-# Feature Spec: Email Watcher Service
+# Feature Spec: Confidence Scoring & Auto-Send
 
-**Phase:** 4.1  
-**Branch:** `feature/4.1-email-watcher`  
-**Priority:** P0  
+**Phase:** 4.2  
+**Branch:** `feature/4.2-confidence-scoring`  
+**Priority:** P1  
 **Est. Time:** 6 hours
 
 ---
 
 ## Objective
 
-Implement background service that polls Gmail for new emails and triggers draft generation automatically.
+Implement confidence scoring system to evaluate draft quality and enable automatic sending for high-confidence, low-risk emails.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `src/watcher.py` implements email watcher service
-- [ ] Polls Gmail API every 5 minutes for new emails
-- [ ] Filters: only unread, non-spam, non-promotional
-- [ ] Integrates with GmailClient to fetch emails
-- [ ] Integrates with ResponseGenerator to create drafts
-- [ ] Stores processed emails in database (marks as processed)
-- [ ] Configurable poll interval via environment variable
-- [ ] Graceful shutdown on SIGTERM/SIGINT
-- [ ] Tests verify polling logic and filtering
+- [ ] `src/confidence.py` implements confidence scoring
+- [ ] Score range: 0.0-1.0 (float)
+- [ ] Considers: sender familiarity, email complexity, response length
+- [ ] Safety rules: never auto-send financial, legal, sensitive topics
+- [ ] Configurable thresholds (default: auto-send >= 0.9)
+- [ ] Logs all scoring decisions with reasoning
+- [ ] Tests verify scoring logic and safety rules
 - [ ] Unit tests pass
 
 ---
 
 ## Deliverable
 
-### `src/watcher.py`
+### `src/confidence.py`
 
 ```python
-"""Email watcher service for Jeeves."""
-import os
-import signal
-import time
-import logging
-from typing import Optional, Callable
-from datetime import datetime
+"""Confidence scoring for draft quality and auto-send decisions."""
+import re
+from typing import Dict, Optional, List, Tuple
+from dataclasses import dataclass
+from enum import Enum
 
 
-class EmailWatcher:
-    """Background service that polls Gmail for new emails."""
+class RiskLevel(Enum):
+    """Risk levels for email content."""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+@dataclass
+class ScoreResult:
+    """Result of confidence scoring."""
+    score: float
+    risk_level: RiskLevel
+    factors: Dict[str, float]
+    reasoning: List[str]
+    auto_send: bool
+
+
+class ConfidenceScorer:
+    """Score draft quality and determine auto-send eligibility."""
     
-    DEFAULT_POLL_INTERVAL = 300  # 5 minutes
-    DEFAULT_BATCH_SIZE = 10
+    # Default thresholds
+    AUTO_SEND_THRESHOLD = 0.9
+    MANUAL_REVIEW_THRESHOLD = 0.5
+    
+    # Factor weights
+    FACTOR_WEIGHTS = {
+        'sender_familiarity': 0.25,
+        'response_length': 0.15,
+        'tone_match': 0.15,
+        'context_relevance': 0.20,
+        'content_safety': 0.25
+    }
     
     def __init__(
         self,
-        gmail_client=None,
-        response_generator=None,
-        db=None,
-        notifier=None,
-        poll_interval: int = None,
-        batch_size: int = None,
-        on_new_email: Callable = None
+        auto_send_threshold: float = None,
+        rag_pipeline=None,
+        db=None
     ):
-        """Initialize email watcher.
+        """Initialize confidence scorer.
         
         Args:
-            gmail_client: GmailClient instance
-            response_generator: ResponseGenerator instance
-            db: Database instance
-            notifier: Notifier instance (optional)
-            poll_interval: Seconds between polls (default: 300)
-            batch_size: Max emails to process per poll (default: 10)
-            on_new_email: Callback for new email processing
+            auto_send_threshold: Minimum score for auto-send (default: 0.9)
+            rag_pipeline: RAGPipeline for context matching
+            db: Database for sender history
         """
-        self.gmail_client = gmail_client
-        self.response_generator = response_generator
+        self.auto_send_threshold = auto_send_threshold or self.AUTO_SEND_THRESHOLD
+        self.rag_pipeline = rag_pipeline
         self.db = db
-        self.notifier = notifier
-        self.poll_interval = poll_interval or int(os.environ.get('POLL_INTERVAL', self.DEFAULT_POLL_INTERVAL))
-        self.batch_size = batch_size or self.DEFAULT_BATCH_SIZE
-        self.on_new_email = on_new_email
-        self._running = False
-        self._last_check = None
     
-    def start(self):
-        """Start the watcher loop."""
-        pass
-    
-    def stop(self):
-        """Stop the watcher loop."""
-        pass
-    
-    def poll(self) -> list:
-        """Poll for new emails.
-        
-        Returns:
-            List of new email dicts
-        """
-        pass
-    
-    def process_email(self, email: dict) -> Optional[dict]:
-        """Process a single email.
+    def score(self, incoming_email: Dict, draft: Dict) -> ScoreResult:
+        """Calculate confidence score for a draft.
         
         Args:
-            email: Email dict from GmailClient
+            incoming_email: Original email dict
+            draft: Generated draft dict
             
         Returns:
-            Draft dict if draft was created, None otherwise
+            ScoreResult with score, risk level, factors, and reasoning
         """
         pass
     
-    def should_process(self, email: dict) -> bool:
-        """Determine if email should be processed.
-        
-        Filters out:
-        - Already processed emails
-        - Spam
-        - Promotional emails
-        - Sent emails
-        - Automated/no-reply emails
+    def should_auto_send(self, score: float, risk_level: RiskLevel) -> bool:
+        """Determine if draft should be auto-sent.
         
         Args:
-            email: Email dict
+            score: Confidence score (0.0-1.0)
+            risk_level: Risk level of content
             
         Returns:
-            True if email should be processed
+            True if should auto-send
         """
         pass
     
-    def _setup_signal_handlers(self):
-        """Set up graceful shutdown handlers."""
-        pass
-    
-    def get_status(self) -> dict:
-        """Get watcher status.
+    def _score_sender_familiarity(self, email: Dict) -> Tuple[float, str]:
+        """Score based on sender familiarity.
         
-        Returns:
-            Dict with running status, last check time, stats
+        Higher score for known senders we've emailed before.
+        """
+        pass
+    
+    def _score_response_length(self, draft: Dict) -> Tuple[float, str]:
+        """Score based on response length appropriateness.
+        
+        Penalize too short or too long responses.
+        """
+        pass
+    
+    def _score_tone_match(self, incoming_email: Dict, draft: Dict) -> Tuple[float, str]:
+        """Score based on tone matching.
+        
+        Check if draft tone matches incoming email tone.
+        """
+        pass
+    
+    def _score_context_relevance(self, incoming_email: Dict, draft: Dict) -> Tuple[float, str]:
+        """Score based on context relevance from RAG.
+        
+        Higher score when draft references relevant past context.
+        """
+        pass
+    
+    def _score_content_safety(self, draft: Dict) -> Tuple[float, RiskLevel, str]:
+        """Score based on content safety analysis.
+        
+        Returns risk level and score.
+        """
+        pass
+    
+    def get_risk_level(self, text: str) -> RiskLevel:
+        """Analyze text for risk level.
+        
+        Checks for:
+        - Financial keywords (bank, transfer, payment, wire)
+        - Legal keywords (contract, sue, legal, attorney)
+        - Sensitive topics (password, ssn, medical, health)
+        - Urgent language (immediately, urgent, asap, emergency)
         """
         pass
 
 
-# Email filtering utilities
-
-def is_automated_email(email: dict) -> bool:
-    """Check if email is from automated system."""
-    pass
-
-
-def is_promotional_email(email: dict) -> bool:
-    """Check if email is promotional/marketing."""
-    pass
-
-
-def extract_sender_domain(email: dict) -> str:
-    """Extract domain from sender email address."""
-    pass
-
-
-# Domain patterns to filter out
-SKIP_DOMAINS = [
-    'noreply', 'no-reply', 'donotreply', 'do-not-reply',
-    'notifications', 'notification', 'alerts', 'alert',
-    'automated', 'automation', 'bot', 'system'
+# Safety patterns
+FINANCIAL_PATTERNS = [
+    r'\bbank\s*(account|transfer)\b',
+    r'\bwire\s*transfer\b',
+    r'\bpayment\b',
+    r'\bcredit\s*card\b',
+    r'\bssn\b',
+    r'\bsocial\s*security\b',
+    r'\bwire\s*money\b',
+    r'\bsend\s*money\b',
+    r'\bbitcoin\b',
+    r'\bcrypto\b',
 ]
 
-SKIP_PATTERNS = [
-    'unsubscribe', 'opt-out', 'opt out',
-    'marketing', 'newsletter', 'promotion',
-    'auto-generated', 'auto generated', 'automated'
+LEGAL_PATTERNS = [
+    r'\bcontract\b',
+    r'\blawsuit\b',
+    r'\bsue\b',
+    r'\battorney\b',
+    r'\blawyer\b',
+    r'\blegal\s*action\b',
+    r'\bn ? ?d\s*a\b',  # NDA variations
+    r'\bsettlement\b',
+    r'\bliability\b',
+]
+
+SENSITIVE_PATTERNS = [
+    r'\bpassword\b',
+    r'\bpasscode\b',
+    r'\bpin\b',
+    r'\bsecret\b',
+    r'\bconfidential\b',
+    r'\bmedical\b',
+    r'\bhealth\b',
+    r'\bdiagnosis\b',
+    r'\bpatient\b',
+]
+
+URGENT_PATTERNS = [
+    r'\bimmediately\b',
+    r'\burgent\b',
+    r'\basap\b',
+    r'\bemergency\b',
+    r'\bright\s*now\b',
+    r'\bdeadline\b',
+    r'\btime\s*sensitive\b',
 ]
 
 
-def run_watcher():
-    """CLI entry point to run the watcher."""
+def analyze_content_risk(text: str) -> Dict[str, List[str]]:
+    """Analyze text for risk patterns.
+    
+    Args:
+        text: Text to analyze
+        
+    Returns:
+        Dict with 'financial', 'legal', 'sensitive', 'urgent' lists of matches
+    """
     pass
 
 
-if __name__ == '__main__':
-    run_watcher()
+def get_auto_send_eligibility(score: float, risk_level: RiskLevel) -> Tuple[bool, str]:
+    """Determine if draft is eligible for auto-send.
+    
+    Args:
+        score: Confidence score
+        risk_level: Content risk level
+        
+    Returns:
+        Tuple of (eligible, reason)
+    """
+    pass
 ```
 
 ---
 
 ## Testing Requirements
 
-### Unit Tests (tests/test_watcher.py)
+### Unit Tests (tests/test_confidence.py)
 
 ```python
-class TestEmailWatcher:
-    """Test cases for EmailWatcher."""
+class TestConfidenceScorer:
+    """Test cases for ConfidenceScorer."""
     
     def test_file_exists(self):
-        """Test watcher.py exists."""
+        """Test confidence.py exists."""
     
     def test_import(self):
-        """Test EmailWatcher can be imported."""
+        """Test ConfidenceScorer can be imported."""
     
     def test_class_has_required_methods(self):
         """Test all required methods exist:
-        - start, stop, poll, process_email, should_process, get_status
+        - score, should_auto_send, get_risk_level
         """
     
-    def test_default_poll_interval(self):
-        """Test default poll interval is 300 seconds (5 min)."""
+    def test_default_auto_send_threshold(self):
+        """Test default threshold is 0.9."""
     
-    def test_default_batch_size(self):
-        """Test default batch size is 10."""
+    def test_score_returns_score_result(self):
+        """Test score() returns ScoreResult dataclass."""
     
-    def test_should_process_filters_spam(self):
-        """Test spam emails are filtered out."""
+    def test_score_range(self):
+        """Test score is always between 0.0 and 1.0."""
     
-    def test_should_process_filters_promotional(self):
-        """Test promotional emails are filtered out."""
+    def test_auto_send_high_score(self):
+        """Test auto-send True for high score + low risk."""
     
-    def test_should_process_filters_noreply(self):
-        """Test noreply emails are filtered out."""
+    def test_no_auto_send_medium_score(self):
+        """Test auto-send False for medium score."""
     
-    def test_should_process_accepts_valid_email(self):
-        """Test valid emails pass the filter."""
+    def test_no_auto_send_high_risk(self):
+        """Test auto-send False for any critical risk."""
     
-    def test_get_status_returns_running_state(self):
-        """Test get_status returns running state."""
+    def test_financial_detection(self):
+        """Test financial patterns detected."""
     
-    def test_graceful_shutdown(self):
-        """Test stop() sets running to False."""
+    def test_legal_detection(self):
+        """Test legal patterns detected."""
     
-    def test_environment_poll_interval(self):
-        """Test POLL_INTERVAL env var is respected."""
+    def test_sensitive_detection(self):
+        """Test sensitive patterns detected."""
+    
+    def test_urgent_detection(self):
+        """Test urgent patterns detected."""
+    
+    def test_score_result_has_reasoning(self):
+        """Test ScoreResult includes reasoning list."""
 
 
-class TestFilteringFunctions:
-    """Test email filtering utilities."""
+class TestRiskLevel:
+    """Test RiskLevel enum."""
     
-    def test_is_automated_email_detects_noreply(self):
-        """Test automated detection for noreply addresses."""
+    def test_risk_levels_exist(self):
+        """Test all risk levels defined: LOW, MEDIUM, HIGH, CRITICAL."""
+
+
+class TestSafetyPatterns:
+    """Test safety pattern detection."""
     
-    def test_is_promotional_email_detects_newsletter(self):
-        """Test promotional detection for newsletters."""
+    def test_financial_patterns_defined(self):
+        """Test FINANCIAL_PATTERNS list exists."""
     
-    def test_extract_sender_domain(self):
-        """Test domain extraction from email address."""
+    def test_legal_patterns_defined(self):
+        """Test LEGAL_PATTERNS list exists."""
+    
+    def test_sensitive_patterns_defined(self):
+        """Test SENSITIVE_PATTERNS list exists."""
+    
+    def test_urgent_patterns_defined(self):
+        """Test URGENT_PATTERNS list exists."""
 ```
 
 ---
 
 ## Tasks
 
-### 4.1.1 Scaffold Watcher Class (1 hr)
-- [ ] Create EmailWatcher class
-- [ ] Add initialization with dependencies
-- [ ] Set up signal handlers
+### 4.2.1 Define Scoring Factors (1.5 hrs)
+- [ ] Define factor weights
+- [ ] Define ScoreResult dataclass
+- [ ] Define RiskLevel enum
 
-### 4.1.2 Implement Polling Loop (2 hrs)
-- [ ] Implement start/stop methods
-- [ ] Implement poll method
-- [ ] Add configurable interval
+### 4.2.2 Implement Scoring Logic (2 hrs)
+- [ ] Implement score() method
+- [ ] Implement factor scoring methods
+- [ ] Combine factors with weights
 
-### 4.1.3 Implement Email Filtering (2 hrs)
-- [ ] Implement should_process method
-- [ ] Add domain-based filtering
-- [ ] Add pattern-based filtering
-- [ ] Filter out sent emails
+### 4.2.3 Implement Safety Rules (1.5 hrs)
+- [ ] Define pattern lists
+- [ ] Implement get_risk_level()
+- [ ] Implement auto-send eligibility
 
-### 4.1.4 Integrate Components (1 hr)
-- [ ] Connect to GmailClient
-- [ ] Connect to ResponseGenerator
-- [ ] Connect to Database
-- [ ] Optional: Connect to Notifier
+### 4.2.4 Write Tests (1 hr)
+- [ ] Write unit tests
+- [ ] Test edge cases
+- [ ] Test safety rules
+
+---
+
+## Scoring Algorithm
+
+```
+Total Score = Σ (Factor Score × Factor Weight)
+
+Factors:
+├── Sender Familiarity (25%)
+│   └── Higher if we've exchanged emails with sender before
+├── Response Length (15%)
+│   └── Optimal range: 50-300 characters
+├── Tone Match (15%)
+│   └── Higher if draft tone matches incoming email
+├── Context Relevance (20%)
+│   └── Higher when RAG finds relevant context
+└── Content Safety (25%)
+    └── Lower if risk patterns detected
+
+Auto-Send Decision:
+├── Score >= 0.9 AND RiskLevel == LOW → AUTO-SEND
+├── Score >= 0.5 AND RiskLevel != CRITICAL → QUEUE FOR REVIEW
+└── Score < 0.5 OR RiskLevel == CRITICAL → FLAG FOR MANUAL REVIEW
+```
 
 ---
 
@@ -271,10 +367,8 @@ class TestFilteringFunctions:
 
 | Dependency | Status | Notes |
 |------------|--------|-------|
-| src.gmail_client | ✅ Done | GmailClient from 1.2 |
-| src.response_generator | ✅ Done | From 2.3 |
-| src.db | 🔲 3.2 | Optional, can work without |
-| src.notifier | 🔲 3.3 | Optional, can work without |
+| src.rag | ✅ Done | For context relevance scoring |
+| src.db | 🔲 3.2 | For sender familiarity |
 
 ---
 
@@ -282,52 +376,35 @@ class TestFilteringFunctions:
 
 ```bash
 # Environment variables
-POLL_INTERVAL=300        # Seconds between polls
-BATCH_SIZE=10            # Max emails per poll
-WATCHER_ENABLED=true     # Enable/disable watcher
+AUTO_SEND_THRESHOLD=0.9     # Minimum score for auto-send
+CONFIDENCE_MIN_LENGTH=50    # Minimum response length
+CONFIDENCE_MAX_LENGTH=500   # Maximum response length
 ```
 
 ---
 
-## Running the Watcher
+## Running Tests
 
 ```bash
-# Run in foreground
-python -m src.watcher
+pytest tests/test_confidence.py -v
 
-# Run with custom interval
-POLL_INTERVAL=60 python -m src.watcher
-
-# Run tests
-pytest tests/test_watcher.py -v
-```
-
----
-
-## Integration Points
-
-```
-┌─────────────────┐
-│  EmailWatcher   │
-└────────┬────────┘
-         │
-    ┌────┴────┬──────────┬──────────┐
-    ▼         ▼          ▼          ▼
-┌───────┐ ┌──────┐ ┌─────────┐ ┌────────┐
-│Gmail  │ │Resp  │ │Database │ │Notifier│
-│Client │ │Gen   │ │(future) │ │(future)│
-└───────┘ └──────┘ └─────────┘ └────────┘
+# Test scoring manually
+python -c "
+from src.confidence import ConfidenceScorer
+scorer = ConfidenceScorer()
+result = scorer.score({'from': 'test@example.com'}, {'text': 'Thanks!'})
+print(f'Score: {result.score}, Auto-send: {result.auto_send}')
+"
 ```
 
 ---
 
 ## Definition of Done
 
-1. `src/watcher.py` implements EmailWatcher class
-2. Polling loop works with configurable interval
-3. Email filtering correctly excludes spam/promotional/noreply
-4. Integrates with GmailClient and ResponseGenerator
-5. Graceful shutdown on signals
-6. All unit tests pass (minimum 12 tests)
-7. Branch pushed to GitHub
-8. PR created (not merged until dependencies ready)
+1. `src/confidence.py` implements ConfidenceScorer
+2. Score range 0.0-1.0
+3. Five scoring factors implemented
+4. Safety rules prevent auto-send for risky content
+5. All unit tests pass (minimum 15 tests)
+6. Branch pushed to GitHub
+7. PR created (not merged until dependencies ready)
