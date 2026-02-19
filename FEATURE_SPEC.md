@@ -15,12 +15,10 @@ Build the Retrieval-Augmented Generation pipeline to index training emails into 
 
 ## Acceptance Criteria
 
-- [ ] ChromaDB installed and working
-- [x] Embedding model downloaded (`BAAI/bge-base-en-v1.5`)
-- [x] `src/rag.py` implements RAG pipeline
-- [x] `index_emails(csv_path)` indexes training emails
-- [x] `search(query, top_k=5)` returns relevant emails
-- [ ] Test: Query "refund request" → returns 5 similar past emails (needs indexed data)
+- [ ] Ollama installed and running
+- [ ] Base model pulled (`mistral:7b-instruct` or similar)
+- [x] `src/llm.py` implements LLM wrapper class
+- [x] `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"` works (needs Ollama)
 - [x] Unit tests pass
 
 ---
