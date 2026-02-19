@@ -1,441 +1,471 @@
-# Feature Spec: Monitoring & Logging
+# Feature Spec: End-to-End Testing
 
-**Phase:** 4.3  
-**Branch:** `feature/4.3-monitoring-logging`  
-**Priority:** P2  
-**Est. Time:** 6 hours
+**Phase:** 5.1  
+**Branch:** `feature/5.1-e2e-testing`  
+**Priority:** P1  
+**Est. Time:** 8 hours
 
 ---
 
 ## Objective
 
-Implement structured logging and metrics collection to track system performance, draft quality, and operational health.
+Implement comprehensive end-to-end tests covering the full email processing pipeline from email receipt to draft sending.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `src/logger.py` implements structured logging
-- [ ] `src/metrics.py` implements metrics collection
-- [ ] Uses `structlog` for JSON-formatted logs
-- [ ] Logs to `logs/jeeves.jsonl`
-- [ ] Tracks: drafts created, sent, edited, rejected
-- [ ] Tracks: processing times, error rates
-- [ ] Provides metrics endpoint for dashboard
-- [ ] Tests verify logging and metrics
-- [ ] Unit tests pass
+- [ ] `tests/e2e/` directory created with test suite
+- [ ] Test: email → draft generation → approval → send flow
+- [ ] Test: each tone mode (casual, formal, concise, match_style)
+- [ ] Test: error handling (network failures, API limits)
+- [ ] Test: confidence scoring and auto-send logic
+- [ ] Test: filtering (spam, promotional, noreply)
+- [ ] Test fixtures for sample emails
+- [ ] CI integration (GitHub Actions)
+- [ ] 95% success rate target on test suite
+- [ ] All E2E tests pass
 
 ---
 
 ## Deliverable
 
-### `src/logger.py`
+### `tests/e2e/conftest.py`
 
 ```python
-"""Structured logging for Jeeves."""
-import os
-import json
-import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional
-from dataclasses import dataclass, asdict
-from enum import Enum
+"""E2E test configuration and fixtures."""
+import pytest
+from unittest.mock import Mock, MagicMock
+from src.gmail_client import GmailClient
+from src.llm import LLM
+from src.rag import RAGPipeline
+from src.response_generator import ResponseGenerator
+from src.confidence import ConfidenceScorer
+from src.db import Database
+from src.watcher import EmailWatcher
 
 
-class LogLevel(Enum):
-    """Log levels."""
-    DEBUG = "debug"
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
-    CRITICAL = "critical"
+@pytest.fixture
+def sample_emails():
+    """Sample email fixtures for testing."""
+    return [
+        {
+            "id": "email_001",
+            "thread_id": "thread_001",
+            "from": "colleague@company.com",
+            "to": "me@example.com",
+            "subject": "Project Update Request",
+            "body_text": "Hey, can you give me an update on the project status?",
+            "date": "2024-01-15T10:00:00Z"
+        },
+        {
+            "id": "email_002",
+            "thread_id": "thread_002",
+            "from": "client@external.com",
+            "to": "me@example.com",
+            "subject": "Meeting Tomorrow",
+            "body_text": "I'd like to schedule a meeting tomorrow at 2pm. Does that work?",
+            "date": "2024-01-15T11:00:00Z"
+        },
+        {
+            "id": "email_003",
+            "thread_id": "thread_003",
+            "from": "noreply@newsletter.com",
+            "to": "me@example.com",
+            "subject": "Your Weekly Newsletter",
+            "body_text": "Here are this week's top stories...",
+            "date": "2024-01-15T12:00:00Z"
+        },
+        {
+            "id": "email_004",
+            "thread_id": "thread_004",
+            "from": "spam@unknown.com",
+            "to": "me@example.com",
+            "subject": "CONGRATULATIONS YOU WON!!!",
+            "body_text": "Click here to claim your prize...",
+            "date": "2024-01-15T13:00:00Z"
+        },
+        {
+            "id": "email_005",
+            "thread_id": "thread_005",
+            "from": "bank@financial.com",
+            "to": "me@example.com",
+            "subject": "Wire Transfer Confirmation",
+            "body_text": "Please confirm the wire transfer of $50,000...",
+            "date": "2024-01-15T14:00:00Z"
+        }
+    ]
 
 
-@dataclass
-class LogEntry:
-    """Structured log entry."""
-    timestamp: str
-    level: str
-    message: str
-    component: str
-    action: str
-    data: Dict[str, Any]
-    duration_ms: Optional[float] = None
-    error: Optional[str] = None
-    trace_id: Optional[str] = None
-
-
-class JeevesLogger:
-    """Structured logger for Jeeves operations."""
-    
-    DEFAULT_LOG_DIR = "logs"
-    DEFAULT_LOG_FILE = "jeeves.jsonl"
-    
-    def __init__(
-        self,
-        log_dir: str = None,
-        log_file: str = None,
-        component: str = "jeeves",
-        level: LogLevel = LogLevel.INFO
-    ):
-        """Initialize logger.
-        
-        Args:
-            log_dir: Directory for log files
-            log_file: Log file name
-            component: Component name for all logs
-            level: Minimum log level
-        """
-        pass
-    
-    def info(self, message: str, action: str, data: Dict = None, **kwargs):
-        """Log info level."""
-        pass
-    
-    def warning(self, message: str, action: str, data: Dict = None, **kwargs):
-        """Log warning level."""
-        pass
-    
-    def error(self, message: str, action: str, error: Exception = None, data: Dict = None, **kwargs):
-        """Log error level."""
-        pass
-    
-    def debug(self, message: str, action: str, data: Dict = None, **kwargs):
-        """Log debug level."""
-        pass
-    
-    def log_draft_created(self, draft_id: int, email_id: int, tone: str, confidence: float):
-        """Log draft creation."""
-        pass
-    
-    def log_draft_sent(self, draft_id: int, subject: str, recipient: str):
-        """Log draft sent."""
-        pass
-    
-    def log_draft_edited(self, draft_id: int, edits_count: int):
-        """Log draft edited."""
-        pass
-    
-    def log_draft_rejected(self, draft_id: int, reason: str = None):
-        """Log draft rejected."""
-        pass
-    
-    def log_email_processed(self, email_id: str, processing_time_ms: float):
-        """Log email processing."""
-        pass
-    
-    def log_error(self, component: str, error: Exception, context: Dict = None):
-        """Log error with context."""
-        pass
-    
-    def _write(self, entry: LogEntry):
-        """Write log entry to file."""
-        pass
-
-
-# Global logger instance
-_logger: Optional[JeevesLogger] = None
-
-
-def get_logger(component: str = None) -> JeevesLogger:
-    """Get or create logger instance."""
+@pytest.fixture
+def mock_gmail_client(sample_emails):
+    """Mock Gmail client for testing."""
     pass
 
 
-def configure_logging(log_dir: str = None, level: LogLevel = LogLevel.INFO):
-    """Configure global logging."""
+@pytest.fixture
+def mock_llm():
+    """Mock LLM for deterministic testing."""
+    pass
+
+
+@pytest.fixture
+def mock_rag():
+    """Mock RAG pipeline for testing."""
+    pass
+
+
+@pytest.fixture
+def test_db(tmp_path):
+    """Temporary database for testing."""
     pass
 ```
 
 ### `src/metrics.py`
 
-```python
-"""Metrics collection for Jeeves."""
-import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
-from collections import defaultdict
-from pathlib import Path
-import threading
-
-
-@dataclass
-class MetricPoint:
-    """Single metric data point."""
-    timestamp: str
-    value: float
-    tags: Dict[str, str] = field(default_factory=dict)
-
-
-@dataclass
-class MetricSummary:
-    """Summary of metric over time period."""
-    name: str
-    count: int
-    sum: float
-    min: float
-    max: float
-    avg: float
-    period_seconds: int
-
-
-class MetricsCollector:
-    """Collect and aggregate metrics."""
-    
-    METRICS_FILE = "logs/metrics.jsonl"
-    
-    def __init__(self, persist: bool = True):
-        """Initialize metrics collector.
-        
-        Args:
-            persist: Whether to persist metrics to file
-        """
-        pass
-    
-    def increment(self, name: str, value: float = 1.0, tags: Dict[str, str] = None):
-        """Increment a counter metric."""
-        pass
-    
-    def gauge(self, name: str, value: float, tags: Dict[str, str] = None):
-        """Set a gauge metric."""
-        pass
-    
-    def timing(self, name: str, duration_ms: float, tags: Dict[str, str] = None):
-        """Record a timing metric."""
-        pass
-    
-    def get_summary(self, name: str, period_seconds: int = 3600) -> MetricSummary:
-        """Get summary of metric over time period."""
-        pass
-    
-    def get_all_metrics(self) -> Dict[str, List[MetricPoint]]:
-        """Get all collected metrics."""
-        pass
-    
-    def get_dashboard_data(self) -> Dict:
-        """Get metrics formatted for dashboard display.
-        
-        Returns:
-            Dict with:
-            - drafts_created_total
-            - drafts_sent_total
-            - drafts_edited_total
-            - drafts_rejected_total
-            - avg_processing_time_ms
-            - avg_confidence_score
-            - error_rate
-            - uptime_seconds
-        """
-        pass
-    
-    def reset(self):
-        """Reset all metrics."""
-        pass
-    
-    def _persist(self, name: str, point: MetricPoint):
-        """Persist metric to file."""
-        pass
-
-
-# Convenience metric functions
-METRICS = None
-
-
-def get_metrics() -> MetricsCollector:
-    """Get global metrics collector."""
+@pytest.fixture
+def e2e_pipeline(mock_gmail_client, mock_llm, mock_rag, test_db):
+    """Complete E2E pipeline with mocked components."""
     pass
-
-
-# Metric names as constants
-class MetricName:
-    """Standard metric names."""
-    DRAFTS_CREATED = "drafts.created"
-    DRAFTS_SENT = "drafts.sent"
-    DRAFTS_EDITED = "drafts.edited"
-    DRAFTS_REJECTED = "drafts.rejected"
-    EMAILS_PROCESSED = "emails.processed"
-    PROCESSING_TIME_MS = "processing.time_ms"
-    CONFIDENCE_SCORE = "confidence.score"
-    ERRORS = "errors.total"
-    WATCHER_POLLS = "watcher.polls"
-    LLM_GENERATIONS = "llm.generations"
-    RAG_QUERIES = "rag.queries"
 ```
 
----
-
-## Testing Requirements
-
-### Unit Tests (tests/test_logger.py)
+### `tests/e2e/test_full_flow.py`
 
 ```python
-class TestJeevesLogger:
-    """Test cases for JeevesLogger."""
-    
-    def test_file_exists(self):
-        """Test logger.py exists."""
-    
-    def test_import(self):
-        """Test JeevesLogger can be imported."""
-    
-    def test_log_entry_creation(self):
-        """Test LogEntry dataclass creation."""
-    
-    def test_info_logging(self):
-        """Test info level logging."""
-    
-    def test_error_logging(self):
-        """Test error level logging with exception."""
-    
-    def test_log_file_created(self):
-        """Test log file is created."""
-    
-    def test_json_format(self):
-        """Test logs are valid JSON."""
-    
-    def test_log_draft_created(self):
-        """Test log_draft_created convenience method."""
-    
-    def test_log_draft_sent(self):
-        """Test log_draft_sent convenience method."""
-    
-    def test_timestamp_format(self):
-        """Test timestamp is ISO 8601 format."""
+"""End-to-end tests for complete email processing flow."""
+import pytest
+from unittest.mock import Mock, patch, MagicMock
 
 
-class TestMetricsCollector:
-    """Test cases for MetricsCollector."""
+class TestFullFlow:
+    """Test complete email processing flow."""
     
-    def test_file_exists(self):
-        """Test metrics.py exists."""
+    def test_email_to_draft_generation(self, e2e_pipeline, sample_emails):
+        """Test: Email received → Draft generated."""
+        pass
     
-    def test_import(self):
-        """Test MetricsCollector can be imported."""
+    def test_draft_to_approval_to_send(self, e2e_pipeline, sample_emails):
+        """Test: Draft created → User approves → Email sent."""
+        pass
     
-    def test_increment(self):
-        """Test counter increment."""
+    def test_draft_edit_and_send(self, e2e_pipeline, sample_emails):
+        """Test: Draft created → User edits → Email sent."""
+        pass
     
-    def test_gauge(self):
-        """Test gauge metric."""
+    def test_draft_rejection(self, e2e_pipeline, sample_emails):
+        """Test: Draft created → User rejects → No email sent."""
+        pass
+
+
+class TestToneModes:
+    """Test each tone mode produces appropriate responses."""
     
-    def test_timing(self):
-        """Test timing metric."""
+    def test_casual_tone(self, e2e_pipeline, sample_emails):
+        """Test casual tone generates informal response."""
+        pass
     
-    def test_get_summary(self):
-        """Test summary calculation."""
+    def test_formal_tone(self, e2e_pipeline, sample_emails):
+        """Test formal tone generates professional response."""
+        pass
     
-    def test_get_dashboard_data(self):
-        """Test dashboard data format."""
+    def test_concise_tone(self, e2e_pipeline, sample_emails):
+        """Test concise tone generates brief response."""
+        pass
     
-    def test_metric_persistence(self):
-        """Test metrics persist to file."""
+    def test_match_style_tone(self, e2e_pipeline, sample_emails):
+        """Test match_style tone mimics user's style."""
+        pass
+
+
+class TestFiltering:
+    """Test email filtering logic."""
+    
+    def test_filter_promotional_email(self, e2e_pipeline, sample_emails):
+        """Test promotional emails are filtered out."""
+        pass
+    
+    def test_filter_spam_email(self, e2e_pipeline, sample_emails):
+        """Test spam emails are filtered out."""
+        pass
+    
+    def test_filter_noreply_email(self, e2e_pipeline, sample_emails):
+        """Test noreply emails are filtered out."""
+        pass
+    
+    def test_accept_valid_email(self, e2e_pipeline, sample_emails):
+        """Test valid emails are processed."""
+        pass
+
+
+class TestConfidenceScoring:
+    """Test confidence scoring and auto-send logic."""
+    
+    def test_high_confidence_auto_send(self, e2e_pipeline, sample_emails):
+        """Test high confidence score triggers auto-send."""
+        pass
+    
+    def test_low_confidence_manual_review(self, e2e_pipeline, sample_emails):
+        """Test low confidence score requires manual review."""
+        pass
+    
+    def test_financial_email_no_auto_send(self, e2e_pipeline, sample_emails):
+        """Test financial emails never auto-send."""
+        pass
+    
+    def test_urgent_email_manual_review(self, e2e_pipeline, sample_emails):
+        """Test urgent emails require manual review."""
+        pass
+
+
+class TestErrorHandling:
+    """Test error handling and recovery."""
+    
+    def test_gmail_api_failure(self, e2e_pipeline):
+        """Test handling of Gmail API failures."""
+        pass
+    
+    def test_llm_timeout(self, e2e_pipeline):
+        """Test handling of LLM timeouts."""
+        pass
+    
+    def test_rag_index_corruption(self, e2e_pipeline):
+        """Test handling of RAG index issues."""
+        pass
+    
+    def test_database_connection_failure(self, e2e_pipeline):
+        """Test handling of database failures."""
+        pass
+    
+    def test_rate_limiting(self, e2e_pipeline):
+        """Test handling of API rate limits."""
+        pass
+    
+    def test_network_failure_recovery(self, e2e_pipeline):
+        """Test recovery from network failures."""
+        pass
+
+
+class TestLoadTesting:
+    """Test system under load."""
+    
+    def test_batch_email_processing(self, e2e_pipeline):
+        """Test processing 100 emails in batch."""
+        pass
+    
+    def test_concurrent_draft_generation(self, e2e_pipeline):
+        """Test concurrent draft generation."""
+        pass
+    
+    def test_memory_usage_under_load(self, e2e_pipeline):
+        """Test memory doesn't leak under load."""
+        pass
+```
+
+### `tests/e2e/test_integration.py`
+
+```python
+"""Integration tests between components."""
+import pytest
+
+
+class TestGmailRAGIntegration:
+    """Test Gmail client + RAG integration."""
+    
+    def test_email_indexing(self, mock_gmail_client, mock_rag):
+        """Test emails are properly indexed in RAG."""
+        pass
+    
+    def test_context_retrieval(self, mock_gmail_client, mock_rag):
+        """Test RAG retrieves relevant context for email."""
+        pass
+
+
+class TestLLMResponseIntegration:
+    """Test LLM + Response Generator integration."""
+    
+    def test_response_generation(self, mock_llm, mock_rag):
+        """Test response generator uses LLM correctly."""
+        pass
+    
+    def test_context_injection(self, mock_llm, mock_rag):
+        """Test context is injected into prompts."""
+        pass
+
+
+class TestDatabaseIntegration:
+    """Test database integration."""
+    
+    def test_draft_persistence(self, test_db):
+        """Test drafts persist across restarts."""
+        pass
+    
+    def test_email_deduplication(self, test_db):
+        """Test same email not processed twice."""
+        pass
+```
+
+### `.github/workflows/e2e-tests.yml`
+
+```yaml
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+      
+      - name: Run E2E tests
+        run: |
+          pytest tests/e2e/ -v --cov=src --cov-report=xml
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
 ```
 
 ---
 
-## Tasks
+## Test Fixtures
 
-### 4.3.1 Set Up Structured Logging (2 hrs)
-- [ ] Install structlog
-- [ ] Implement JeevesLogger class
-- [ ] Implement LogEntry dataclass
-- [ ] Add convenience methods
+### `tests/e2e/fixtures/emails/`
 
-### 4.3.2 Implement Metrics Collection (2 hrs)
-- [ ] Implement MetricsCollector class
-- [ ] Add counter, gauge, timing methods
-- [ ] Add summary calculations
-- [ ] Add persistence
-
-### 4.3.3 Add Dashboard Integration (1 hr)
-- [ ] Implement get_dashboard_data()
-- [ ] Add uptime tracking
-- [ ] Add error rate calculation
-
-### 4.3.4 Write Tests (1 hr)
-- [ ] Write logger tests
-- [ ] Write metrics tests
-- [ ] Test file persistence
-
----
-
-## Log Format
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:00.123Z",
-  "level": "info",
-  "message": "Draft created",
-  "component": "response_generator",
-  "action": "draft_created",
-  "data": {
-    "draft_id": 123,
-    "email_id": 456,
-    "tone": "formal",
-    "confidence": 0.85
-  },
-  "duration_ms": 1250.5,
-  "trace_id": "abc-123-def"
-}
+```
+tests/e2e/fixtures/emails/
+├── simple_request.json      # Simple info request
+├── meeting_invite.json      # Meeting invitation
+├── project_update.json      # Project status request
+├── financial_email.json     # Financial content (no auto-send)
+├── urgent_email.json        # Urgent content
+├── spam_email.json          # Spam (filtered)
+├── newsletter.json          # Newsletter (filtered)
+└── noreply_email.json       # Noreply sender (filtered)
 ```
 
----
-
-## Metrics Format
+### Sample fixture file
 
 ```json
 {
-  "timestamp": "2024-01-15T10:30:00.123Z",
-  "name": "drafts.created",
-  "value": 1.0,
-  "tags": {
-    "tone": "formal",
-    "confidence_bucket": "high"
+  "id": "fixture_001",
+  "thread_id": "thread_fixture_001",
+  "from": "test@example.com",
+  "to": "me@example.com",
+  "subject": "Test Email Subject",
+  "body_text": "This is a test email body.",
+  "date": "2024-01-15T10:00:00Z",
+  "expected": {
+    "should_process": true,
+    "min_confidence": 0.5,
+    "suggested_tone": "casual"
   }
 }
 ```
 
 ---
 
-## Dashboard Metrics
+## Testing Requirements
 
-| Metric | Description | Type |
-|--------|-------------|------|
-| `drafts.created` | Total drafts created | Counter |
-| `drafts.sent` | Total drafts sent | Counter |
-| `drafts.edited` | Total drafts edited | Counter |
-| `drafts.rejected` | Total drafts rejected | Counter |
-| `processing.time_ms` | Email processing time | Timing |
-| `confidence.score` | Draft confidence scores | Gauge |
-| `errors.total` | Total errors | Counter |
+### Test Coverage
+
+| Component | Target Coverage |
+|-----------|-----------------|
+| Email flow | 100% |
+| Tone modes | 100% |
+| Filtering | 100% |
+| Confidence | 100% |
+| Error handling | 80% |
+| Load tests | Basic |
+
+### Success Metrics
+
+| Metric | Target |
+|--------|--------|
+| Test pass rate | 95% |
+| Code coverage | 80% |
+| E2E test time | <5 min |
 
 ---
 
-## Dependencies
+## Tasks
 
-```bash
-pip install structlog
-```
+### 5.1.1 Set Up E2E Infrastructure (2 hrs)
+- [ ] Create tests/e2e/ directory
+- [ ] Set up pytest fixtures
+- [ ] Create mock components
+- [ ] Create sample email fixtures
+
+### 5.1.2 Write Full Flow Tests (2 hrs)
+- [ ] Test email → draft flow
+- [ ] Test approval → send flow
+- [ ] Test tone modes
+- [ ] Test filtering
+
+### 5.1.3 Write Confidence Tests (1 hr)
+- [ ] Test scoring logic
+- [ ] Test auto-send rules
+- [ ] Test safety rules
+
+### 5.1.4 Write Error Handling Tests (2 hrs)
+- [ ] Test API failures
+- [ ] Test timeouts
+- [ ] Test rate limits
+
+### 5.1.5 CI Integration (1 hr)
+- [ ] Create GitHub Actions workflow
+- [ ] Add coverage reporting
+- [ ] Set up test artifacts
 
 ---
 
 ## Running Tests
 
 ```bash
-pytest tests/test_logger.py tests/test_metrics.py -v
+# Run all E2E tests
+pytest tests/e2e/ -v
+
+# Run with coverage
+pytest tests/e2e/ -v --cov=src --cov-report=html
+
+# Run specific test class
+pytest tests/e2e/test_full_flow.py -v
+
+# Run with fixtures
+pytest tests/e2e/ --fixtures
+
+# Run load tests
+pytest tests/e2e/test_load_testing.py -v -s
 ```
 
 ---
 
 ## Definition of Done
 
-1. `src/logger.py` implements structured logging
-2. `src/metrics.py` implements metrics collection
-3. Logs written to `logs/jeeves.jsonl`
-4. Metrics persisted to `logs/metrics.jsonl`
-5. Convenience methods for common operations
-6. All unit tests pass
-7. Branch pushed to GitHub
-8. PR created
+1. `tests/e2e/` directory with full test suite
+2. All 4 tone modes tested
+3. Error handling tests for 5+ scenarios
+4. Filtering tests for spam/promotional/noreply
+5. Confidence scoring tests
+6. CI integration with GitHub Actions
+7. 95% test pass rate
+8. 80% code coverage
+9. Branch pushed to GitHub
+10. PR created

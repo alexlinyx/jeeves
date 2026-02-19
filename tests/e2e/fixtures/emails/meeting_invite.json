@@ -1,0 +1,14 @@
+{
+  "id": "fixture_meeting_001",
+  "thread_id": "thread_meeting_001",
+  "from": "client@business.com",
+  "to": "me@example.com",
+  "subject": "Meeting Invitation: Project Review",
+  "body_text": "Dear Team,\n\nI would like to schedule a project review meeting for next Tuesday at 2:00 PM EST. Please let me know if this time works for you.\n\nBest regards,\nClient Name",
+  "date": "2024-01-15T14:30:00Z",
+  "expected": {
+    "should_process": true,
+    "min_confidence": 0.6,
+    "suggested_tone": "formal"
+  }
+}

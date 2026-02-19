@@ -1,0 +1,16 @@
+{
+  "id": "fixture_financial_001",
+  "thread_id": "thread_financial_001",
+  "from": "bank@secure-financial.com",
+  "to": "me@example.com",
+  "subject": "Wire Transfer Confirmation Required",
+  "body_text": "Dear Customer,\n\nWe have received a request to initiate a wire transfer of $25,000 to account ending in ****5678. Please confirm this transaction by logging into your secure account.\n\nIf you did not authorize this transfer, please contact us immediately at 1-800-XXX-XXXX.\n\nSincerely,\nSecurity Team",
+  "date": "2024-01-15T16:00:00Z",
+  "expected": {
+    "should_process": true,
+    "min_confidence": 0.5,
+    "suggested_tone": "formal",
+    "should_not_auto_send": true,
+    "reason": "financial_content"
+  }
+}
