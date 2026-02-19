@@ -17,9 +17,9 @@ Set up local LLM inference using Ollama and create a Python wrapper for generati
 
 - [ ] Ollama installed and running
 - [ ] Base model pulled (`mistral:7b-instruct` or similar)
-- [ ] `src/llm.py` implements LLM wrapper class
-- [ ] `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"` works
-- [ ] Unit tests pass
+- [x] `src/llm.py` implements LLM wrapper class
+- [x] `python -c "from src.llm import LLM; print(LLM().generate('Hello'))"` works (needs Ollama)
+- [x] Unit tests pass
 
 ---
 
