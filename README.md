@@ -32,12 +32,71 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+```
 
-# Install Ollama and download model
-# See: https://ollama.ai
+### Ollama Setup
+
+Jeeves uses Ollama for local LLM inference. All AI processing happens on your machine.
+
+#### Install Ollama
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://ollama.ai/install.sh | sh
+```
+
+**Windows:**
+Download from https://ollama.ai/download
+
+**Verify installation:**
+```bash
+ollama --version
+```
+
+#### Start Ollama Service
+
+Ollama runs as a background service:
+
+```bash
+# Start the service (runs on http://localhost:11434)
+ollama serve
+
+# In a new terminal, verify it's running
+curl http://localhost:11434/api/tags
+```
+
+#### Download a Model
+
+Jeeves works best with instruction-tuned models:
+
+```bash
+# Recommended: Mistral 7B (best balance of speed and quality)
 ollama pull mistral:7b-instruct
 
-# Set up Gmail OAuth (see docs/gmail-setup.md)
+# Alternative: Llama 3.2 3B (faster, lower quality)
+ollama pull llama3.2:3b
+
+# Alternative: Qwen 2.5 7B (good for non-English)
+ollama pull qwen2.5:7b
+```
+
+#### Hardware Requirements
+
+| Model | RAM | GPU | Speed |
+|-------|-----|-----|-------|
+| mistral:7b-instruct | 8GB | 6GB VRAM (optional) | ~3-5s per draft |
+| llama3.2:3b | 4GB | 4GB VRAM (optional) | ~1-2s per draft |
+| qwen2.5:7b | 8GB | 6GB VRAM (optional) | ~3-5s per draft |
+
+**Note:** GPU is optional but significantly faster. Without GPU, models run on CPU (slower but works fine).
+
+#### Test Your Setup
+
+```bash
+# Quick test
+ollama run mistral:7b-instruct "Say hello in one sentence."
+
+# Should output a greeting and exit
 ```
 
 ### Configuration
