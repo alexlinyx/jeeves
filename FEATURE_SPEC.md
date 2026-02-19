@@ -16,17 +16,17 @@ Build the pipeline to ingest email history from Gmail, extract training data (se
 ## Acceptance Criteria
 
 - [ ] Gmail Takeout export instructions provided to user
-- [ ] `src/ingest.py` can parse `.mbox` files
-- [ ] Extracts sent emails (from "Sent" folder or by filtering `sent_by_you` field)
-- [ ] Outputs `data/training_emails.csv` with schema:
+- [x] `src/ingest.py` can parse `.mbox` files
+- [x] Extracts sent emails (from "Sent" folder or by filtering `sent_by_you` field)
+- [x] Outputs `data/training_emails.csv` with schema:
   - `thread_id`
   - `from`
   - `subject`
   - `body_text`
   - `sent_by_you` (boolean)
   - `timestamp`
-- [ ] Command `python src/ingest.py --mbox ~/Downloads/takeout.mbox` produces valid CSV
-- [ ] Unit tests for parser pass
+- [x] Command `python src/ingest.py --mbox ~/Downloads/takeout.mbox` produces valid CSV
+- [x] Unit tests for parser pass
 
 ---
 
