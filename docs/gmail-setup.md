@@ -2,12 +2,7 @@
 
 Jeeves requires OAuth 2.0 credentials to read your emails and save drafts securely. It does **not** use an app password, ensuring maximum security via OAuth.
 
-## Automated Setup (OpenClaw)
-If you're running Jeeves on your OpenClaw host, your agent can automatically pull your existing Google Workspace credentials from AWS Secrets Manager (`alyxclaw/google/oauth-credentials` and `alyxclaw/google/refresh-token`). Just ask Claw to "configure Jeeves Gmail auth".
-
-## Manual Setup
-
-If you're running this on a new machine without AWS Secrets Manager access:
+## Setup Instructions
 
 1. **Go to Google Cloud Console:** https://console.cloud.google.com/
 2. **Create a Project:** Name it "Jeeves Email AI"
@@ -21,7 +16,8 @@ If you're running this on a new machine without AWS Secrets Manager access:
    - Application type: "Desktop app" (or "Web application")
    - Click "Download JSON"
 6. **Save file:**
-   - Move the downloaded JSON file to `jeeves/data/credentials.json`.
+   - Move the downloaded JSON file to your Jeeves data directory and name it `credentials.json` (e.g., `data/credentials.json`).
+   - If you want to use a different location, update `GMAIL_CREDENTIALS_PATH` in your `.env` file.
 7. **First Run:**
    - When you first run `python -m src.ingest`, it will open a browser to authenticate.
-   - It will save a `data/gmail_token.json` file for future runs automatically.
+   - It will save a `gmail_token.json` file in your data directory for future runs automatically.
