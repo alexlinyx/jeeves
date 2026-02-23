@@ -121,11 +121,20 @@ Required environment variables:
 
 For Gmail OAuth setup, see [Gmail Setup Guide](docs/gmail-setup.md).
 
-### Run
+### Run & Data Ingestion
+
+To use the "Match Style" feature, Jeeves needs to analyze your past emails via a Google Takeout `.mbox` file.
+
+**How to get your `.mbox` file:**
+1. Go to **[Google Takeout](https://takeout.google.com/)**
+2. Click **"Deselect all"**
+3. Check the box next to **"Mail"** (Tip: Click "All Mail data included" and uncheck everything except your "Sent" folder to make the file smaller and faster to process)
+4. Scroll to the bottom and click **"Next step"**, then **"Create export"**
+5. Google will email you a download link (can take hours). Once downloaded and unzipped, you'll have your `.mbox` file.
 
 ```bash
 # Ingest your email history (one-time)
-python -m src.ingest --mbox ~/Downloads/takeout.mbox --user-email you@example.com
+python -m src.ingest --mbox ~/Downloads/Takeout/Mail/Sent.mbox --user-email you@example.com --sent-only
 
 # Start the dashboard
 python -m src.dashboard
@@ -133,6 +142,7 @@ python -m src.dashboard
 # Or run in background with email watcher
 python -m src.watcher
 ```
+*(Note: You can run the dashboard and watcher without an `.mbox` file to use the default AI tones. The `.mbox` is only required for the "Match Style" feature.)*
 
 ## Usage
 
@@ -153,7 +163,7 @@ Open http://localhost:7860 to access the Gradio dashboard.
 | `casual` | Friendly, conversational, uses contractions |
 | `formal` | Professional, proper grammar, polite |
 | `concise` | Brief, to-the-point, minimal fluff |
-| `match_style` | Mimics your writing style from past emails |
+| `match_style` | Mimics your writing style from past emails (requires `.mbox` ingestion) |
 
 ### Notifications
 
